@@ -1,1 +1,11 @@
-{"result":"error","documentation":"https://www.exchangerate-api.com/docs","terms-of-use":"https://www.exchangerate-api.com/terms","error-type":"invalid-key"}
+{
+  "base_currency": "USD",
+  "last_updated": "2026-07-11T18:58:28Z",
+  "rates": {
+    "EGP": 48.5,
+    "EUR": 0.92,
+    "GBP": 0.78,
+    "SAR": 3.75,
+    "AED": 3.67
+  }
+}
