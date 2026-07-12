@@ -1,8 +1,0 @@
-{
-  "rewrites": [
-    {
-      "source": "/rates",
-      "destination": "/api/index.js"
-    }
-  ]
-}
