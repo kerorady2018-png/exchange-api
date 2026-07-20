@@ -2,12 +2,11 @@ import * as cheerio from 'cheerio';
 
 let cache = null;
 let lastUpdate = 0;
-const TTL = 3600000; // تخزين مؤقت لمدة ساعة كاملة
+const TTL = 3600000;
 
 export default async function handler(req, res) {
   const now = Date.now();
 
-  // إذا كانت البيانات مخزنة ولم ينتهِ الوقت، أرسلها فوراً لتسريع التطبيق
   if (cache && (now - lastUpdate < TTL)) {
     return res.status(200).json(cache);
   }
@@ -28,7 +27,6 @@ export default async function handler(req, res) {
     const html = await response.text();
     const $ = cheerio.load(html);
 
-    // الهيكل الافتراضي لأسعار العملات الذي يتوقعه تطبيق الموبايل
     const rates = {
       "USD": 0,
       "EUR": 0,
@@ -37,11 +35,9 @@ export default async function handler(req, res) {
       "AED": 0
     };
 
-    // استخراج البيانات من جدول صفحة بنك مصر
-    // يمكنك تعديل محددات العناصر (Selectors) بناءً على الكود الفعلي لجدول العملات في الصفحة
     $('table tr').each((index, element) => {
       const currencyText = $(element).find('td').eq(0).text().trim();
-      const rateText = $(element).find('td').eq(2).text().trim(); // سعر البيع أو الشراء حسب رغبتك
+      const rateText = $(element).find('td').eq(2).text().trim();
       
       const parsedRate = parseFloat(rateText);
       if (currencyText && !isNaN(parsedRate)) {
@@ -55,9 +51,6 @@ export default async function handler(req, res) {
     return res.status(200).json(cache);
 
   } catch (error) {
-    console.error('Error fetching or parsing Bank Misr rates:', error);
-    
-    // في حال حدوث أي خطأ في الاتصال، يتم إرجاع آخر بيانات ناجحة من الكاش
     if (cache) {
       return res.status(200).json(cache);
     }
