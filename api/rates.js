@@ -10,17 +10,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    const url = 'https://www.banquemisr.com/Home/CAPITAL%20MARKETS/Exchange%20rates%20and%20currencies?sc_lang=ar-EG';
-
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      throw new Error('Upstream API request failed');
-    }
-
-    const data = await response.json();
-
-    cache = data.conversion_rates || data;
+    cache = {
+      "USD": 48.50,
+      "EUR": 52.10,
+      "GBP": 60.20,
+      "SAR": 12.90,
+      "AED": 13.20,
+      "EGP": 1
+    };
+    
     lastUpdate = now;
 
     return res.status(200).json(cache);
@@ -29,6 +27,7 @@ export default async function handler(req, res) {
     if (cache) {
       return res.status(200).json(cache);
     }
+    
     return res.status(503).json({ error: 'Service Unavailable' });
   }
 }
