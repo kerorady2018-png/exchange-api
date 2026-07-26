@@ -1,13 +1,12 @@
 import mongoose from 'mongoose';
 
-// منع فتح اتصال جديد مع كل طلب (مهم جداً لعمل وظائف Serverless على Vercel)
 let isConnected = false;
 
 const connectDB = async () => {
   if (isConnected) return;
   try {
     await mongoose.connect(process.env.MONGODB_URI, {
-      dbName: 'user_database', // اسم قاعدة البيانات
+      dbName: 'user_database',
     });
     isConnected = true;
   } catch (error) {
@@ -15,7 +14,6 @@ const connectDB = async () => {
   }
 };
 
-// تصميم هيكل البيانات (Schema) الذي سيتم حفظه في القاعدة
 const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
   phone: String,
@@ -26,7 +24,6 @@ const UserSchema = new mongoose.Schema({
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
 export default async function handler(req, res) {
-  // تفعيل الـ CORS للسماح بالتطبيق بالاتصال بالـ API
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -44,7 +41,6 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Name is required' });
       }
 
-      // حفظ البيانات في قاعدة البيانات
       const newUser = new User({ name, phone, email, date });
       await newUser.save();
 
