@@ -1,5 +1,5 @@
 {
-  "name": "exchange-api",
+  "name": "my-backend",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -9,8 +9,10 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module",
   "dependencies": {
     "mongoose": "^9.8.0"
   }
 }
+```[cite: 7]
+
+قم باستبدال الكود القديم بهذا الكود في ملف `package.json` الخاص بالـ Backend ثم قم بعمل Deploy جديد، وستعمل الأكواد بشكل سليم تماماً.
