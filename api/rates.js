@@ -3,6 +3,13 @@ let lastUpdate = 0;
 const TTL = 3600000;
 
 export default async function handler(req, res) {
+  // السماح بالوصول من أي مصدر (CORS)
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  
+  // تفعيل التخزين المؤقت على حافة الشبكة لمدة ساعة كاملة (3600 ثانية)
+  res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=1800');
+
   const now = Date.now();
 
   if (cache && (now - lastUpdate < TTL)) {
