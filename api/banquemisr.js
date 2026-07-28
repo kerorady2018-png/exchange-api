@@ -5,6 +5,9 @@ module.exports = async (req, res) => {
   // السماح بالوصول من أي مصدر (CORS)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
+  
+  // تفعيل التخزين المؤقت على حافة الشبكة لمدة ساعة كاملة (3600 ثانية)
+  res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=1800');
 
   try {
     const url = 'https://www.banquemisr.com/Home/CAPITAL%20MARKETS/Exchange%20rates%20and%20currencies?sc_lang=ar-EG';
