@@ -11,13 +11,14 @@ const connectDB = async () => {
     isConnected = true;
   } catch (error) {
     console.error('MongoDB connection error:', error);
+    throw error;
   }
 };
 
 const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  phone: { type: String, unique: true, sparse: true },
-  email: { type: String, unique: true, sparse: true },
+  phone: { type: String, unique: true, sparse: true, trim: true },
+  email: { type: String, unique: true, sparse: true, trim: true, lowercase: true },
   portfolio: { type: Array, default: [] }, // حقل مخصص لحفظ بيانات المحفظة والأصول
   date: { type: Date, default: Date.now }
 });
@@ -42,20 +43,25 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Name is required' });
       }
 
-      // البحث عن المستخدم باستخدام الإيميل أو الهاتف أو الاسم لتحديث بياناته بدلاً من تكرار السجلات
-      const query = email ? { email } : (phone ? { phone } : { name });
+      // تنظيف البيانات والتأكد من عدم إرسال سلاسل فارغة
+      const cleanEmail = email && email.trim() !== '' ? email.trim().toLowerCase() : undefined;
+      const cleanPhone = phone && phone.trim() !== '' ? phone.trim() : undefined;
 
+      // تحديد استعلام البحث بدقة بناءً على البيانات المتوفرة وغير الفارغة
+      const query = cleanEmail ? { email: cleanEmail } : (cleanPhone ? { phone: cleanPhone } : { name });
+
+      // بناء بيانات التحديث لتجنب تخزين قيم فارغة عن طريق الخطأ
       const updateData = {
         name,
-        phone,
-        email,
-        ...(portfolio && { portfolio }), // تحديث المحفظة إذا تم إرسالها
+        ...(cleanPhone && { phone: cleanPhone }),
+        ...(cleanEmail && { email: cleanEmail }),
+        ...(portfolio && { portfolio }),
         date: new Date()
       };
 
       const updatedUser = await User.findOneAndUpdate(query, updateData, {
         new: true,
-        upsert: true, // إنشاء المستخدم إذا لم يكن موجوداً أو تحديثه إذا كان موجوداً
+        upsert: true,
         setDefaultsOnInsert: true
       });
 
@@ -66,6 +72,12 @@ export default async function handler(req, res) {
       });
     } catch (error) {
       console.error('Error saving data:', error);
+
+      // التعامل المخصص مع خطأ التكرار في الحقول الفريدة
+      if (error.code === 11000) {
+        return res.status(400).json({ error: 'The provided email or phone is already registered with another account.' });
+      }
+
       return res.status(500).json({ error: 'Internal Server Error' });
     }
   }
