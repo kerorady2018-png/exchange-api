@@ -1,7 +1,7 @@
-const axios = require('axios');
-const cheerio = require('cheerio');
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   // السماح بالوصول من أي مصدر (CORS)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
@@ -52,4 +52,4 @@ module.exports = async (req, res) => {
       error: error.message
     });
   }
-};
+}
