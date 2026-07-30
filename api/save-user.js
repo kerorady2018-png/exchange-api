@@ -20,6 +20,7 @@ const UserSchema = new mongoose.Schema({
   phone: { type: String, unique: true, sparse: true, trim: true },
   email: { type: String, unique: true, sparse: true, trim: true, lowercase: true },
   portfolio: { type: Array, default: [] }, // حقل مخصص لحفظ بيانات المحفظة والأصول
+  totalValue: { type: Number, default: 0 }, // <--- 1. أضف هذا الحقل هنا لكي يقبله الـ Schema
   date: { type: Date, default: Date.now }
 });
 
@@ -37,7 +38,7 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
       await connectDB();
-      const { name, phone, email, portfolio } = req.body;
+      const { name, phone, email, portfolio, totalValue } = req.body; // <--- 2. أضف totalValue هنا
 
       if (!name) {
         return res.status(400).json({ error: 'Name is required' });
@@ -56,6 +57,7 @@ export default async function handler(req, res) {
         ...(cleanPhone && { phone: cleanPhone }),
         ...(cleanEmail && { email: cleanEmail }),
         ...(portfolio && { portfolio }),
+        ...(totalValue !== undefined && { totalValue }), // <--- 3. أضف هذا السطر لتضمين القيمة الإجمالية في التحديث
         date: new Date()
       };
 
