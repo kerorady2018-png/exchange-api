@@ -16,8 +16,9 @@ const connectDB = async () => {
 
 const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  phone: String,
-  email: String,
+  phone: { type: String, unique: true, sparse: true },
+  email: { type: String, unique: true, sparse: true },
+  portfolio: { type: Array, default: [] }, // حقل مخصص لحفظ بيانات المحفظة والأصول
   date: { type: Date, default: Date.now }
 });
 
@@ -35,18 +36,33 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
       await connectDB();
-      const { name, phone, email, date } = req.body;
+      const { name, phone, email, portfolio } = req.body;
 
       if (!name) {
         return res.status(400).json({ error: 'Name is required' });
       }
 
-      const newUser = new User({ name, phone, email, date });
-      await newUser.save();
+      // البحث عن المستخدم باستخدام الإيميل أو الهاتف أو الاسم لتحديث بياناته بدلاً من تكرار السجلات
+      const query = email ? { email } : (phone ? { phone } : { name });
+
+      const updateData = {
+        name,
+        phone,
+        email,
+        ...(portfolio && { portfolio }), // تحديث المحفظة إذا تم إرسالها
+        date: new Date()
+      };
+
+      const updatedUser = await User.findOneAndUpdate(query, updateData, {
+        new: true,
+        upsert: true, // إنشاء المستخدم إذا لم يكن موجوداً أو تحديثه إذا كان موجوداً
+        setDefaultsOnInsert: true
+      });
 
       return res.status(200).json({ 
         success: true, 
-        message: 'Data saved successfully to MongoDB Atlas!' 
+        message: 'Portfolio and user data saved successfully to MongoDB Atlas!',
+        user: updatedUser
       });
     } catch (error) {
       console.error('Error saving data:', error);
