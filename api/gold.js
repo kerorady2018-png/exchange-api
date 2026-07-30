@@ -2,7 +2,7 @@ let cachedData = null;
 let lastFetchTime = 0;
 const UPDATE_INTERVAL = 15 * 60 * 1000; // 15 دقيقة
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   // السماح بالوصول من أي مصدر (CORS)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
@@ -42,4 +42,5 @@ module.exports = async (req, res) => {
     }
     return res.status(500).json({ error: 'Failed to fetch gold price' });
   }
-};
+}
+```[cite: 10]
