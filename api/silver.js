@@ -3,16 +3,12 @@ let lastFetchTime = 0;
 const UPDATE_INTERVAL = 15 * 60 * 1000; // 15 دقيقة
 
 export default async function handler(req, res) {
-  // السماح بالوصول من أي مصدر (CORS)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
-  
-  // تفعيل التخزين المؤقت على حافة الشبكة لمدة 15 دقيقة (900 ثانية) للفضة
   res.setHeader('Cache-Control', 'public, s-maxage=900, stale-while-revalidate=300');
 
   const nowTime = Date.now();
 
-  // التخزين المؤقت على السيرفر لتوفير الطلبات للفضة
   if (cachedData && (nowTime - lastFetchTime < UPDATE_INTERVAL)) {
     return res.status(200).json({
       source: 'server-cache',
@@ -22,6 +18,11 @@ export default async function handler(req, res) {
 
   try {
     const response = await fetch('https://api.gold-api.com/price/XAG');
+    
+    if (!response.ok) {
+      throw new Error(`External API error: ${response.status}`);
+    }
+
     const json = await response.json();
 
     cachedData = json;
@@ -38,7 +39,14 @@ export default async function handler(req, res) {
         data: cachedData
       });
     }
-    return res.status(500).json({ error: 'Failed to fetch silver price' });
+
+    return res.status(200).json({
+      source: 'safe-fallback',
+      data: {
+        price: 0,
+        symbol: "XAG",
+        error: "Temporary external source unavailable"
+      }
+    });
   }
 }
-```[cite: 11]
