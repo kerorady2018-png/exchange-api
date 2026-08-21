@@ -1,0 +1,14 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "byNJMW5FkQNnFn14u0iiI"
+uri = "file://artifacts/mobile/assets/images/icon.png"
+type = "image"
+title = "qirsh-app-icon"
+
+[[generated]]
+id = "KzNMdqRiivmOCC6VYTENj"
+uri = "file://artifacts/mobile/assets/images/splash-icon.png"
+type = "image"
+title = "qirsh-splash-icon"

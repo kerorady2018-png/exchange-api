@@ -1,0 +1,178 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: rates
+    description: Market rates — currency, gold, and silver
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /rates:
+    get:
+      operationId: getRates
+      tags: [rates]
+      summary: Get live CBE currency exchange rates
+      description: Returns the latest currency exchange rates fetched from the CBE reference and free currency APIs, refreshed every 30 minutes.
+      responses:
+        "200":
+          description: Currency rates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RatesResponse"
+        "503":
+          description: Data not yet available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /gold:
+    get:
+      operationId: getGoldPrices
+      tags: [rates]
+      summary: Get live gold and silver prices in EGP
+      description: Returns gold (24K, 21K, 18K, Gold Coin) and silver (925, 999) prices computed from international spot prices and the USD/EGP rate.
+      responses:
+        "200":
+          description: Gold and silver prices
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoldResponse"
+        "503":
+          description: Data not yet available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rates/status:
+    get:
+      operationId: getRatesStatus
+      tags: [rates]
+      summary: Get data freshness status
+      responses:
+        "200":
+          description: Data status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RatesStatus"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    LiveCurrencyRate:
+      type: object
+      properties:
+        code:
+          type: string
+          description: ISO 4217 currency code (e.g. USD)
+        buy:
+          type: number
+          description: Bank buy price in EGP
+        sell:
+          type: number
+          description: Bank sell price in EGP
+        change:
+          type: number
+          description: Absolute change since previous snapshot
+        changePercent:
+          type: number
+          description: Percentage change since previous snapshot
+      required: [code, buy, sell, change, changePercent]
+
+    LiveGoldPrice:
+      type: object
+      properties:
+        key:
+          type: string
+          description: gold24 | gold21 | gold18 | goldCoin | silver925 | silver999
+        buyPrice:
+          type: number
+          description: Buy price in EGP per gram (or per coin for goldCoin)
+        sellPrice:
+          type: number
+          description: Sell price in EGP per gram (or per coin for goldCoin)
+        change:
+          type: number
+        changePercent:
+          type: number
+      required: [key, buyPrice, sellPrice, change, changePercent]
+
+    RatesResponse:
+      type: object
+      properties:
+        currencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiveCurrencyRate"
+        lastUpdated:
+          type: string
+          format: date-time
+        isLive:
+          type: boolean
+      required: [currencies, lastUpdated, isLive]
+
+    GoldResponse:
+      type: object
+      properties:
+        prices:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiveGoldPrice"
+        lastUpdated:
+          type: string
+          format: date-time
+        isLive:
+          type: boolean
+      required: [prices, lastUpdated, isLive]
+
+    RatesStatus:
+      type: object
+      properties:
+        isLive:
+          type: boolean
+        lastUpdated:
+          type: string
+          nullable: true
+        currencyCount:
+          type: integer
+        goldCount:
+          type: integer
+      required: [isLive, lastUpdated, currencyCount, goldCount]
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]

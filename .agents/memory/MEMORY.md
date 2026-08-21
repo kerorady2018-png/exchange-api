@@ -1,0 +1,1 @@
+- [Qirsh market data architecture](qirsh-market-data.md) — single fawazahmed0 CDN call gives currencies + XAU/XAG metals; metals.live fails with TLS SNI error in this env

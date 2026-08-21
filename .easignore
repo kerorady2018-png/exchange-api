@@ -1,0 +1,10 @@
+node_modules/
+.git/
+.local/
+.expo/
+dist/
+.DS_Store
+*.log
+artifacts/
+*.zip
+*.tar
