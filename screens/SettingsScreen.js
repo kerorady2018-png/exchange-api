@@ -3,18 +3,19 @@ import { View, Text, TextInput, StyleSheet, Switch, SafeAreaView, ActivityIndica
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { useNavigation } from '@react-navigation/native';
+
 import { SettingsContext } from '../context/SettingsContext';
 import { currencyInfo } from '../constants/currencyData';
 import { useTheme } from '../hooks/useTheme';
+import { CACHE_KEYS } from '../constants/cacheKeys';
 
 import CustomPicker from '../components/common/CustomPicker';
 import MultiSelectPicker from '../components/common/MultiSelectPicker';
 import BaseCurrencySelector from '../components/common/BaseCurrencySelector';
-import { useNavigation } from '@react-navigation/native';
 import AuthService from '../services/authService';
 import SecureStorageService from '../utils/secureStorageService';
-import { CACHE_KEYS } from '../constants/cacheKeys';
-import * as Haptics from 'expo-haptics';
 
 const SettingsScreen = () => {
   const { i18n, t } = useTranslation();
@@ -48,11 +49,11 @@ const SettingsScreen = () => {
   useEffect(() => {
     const loadSavedUserData = async () => {
       try {
-        const savedName = (await SecureStorageService.getValue(CACHE_KEYS.USER_NAME)) || (await SecureStorageService.getValue('secure_user_name'));
-        const savedPhone = (await SecureStorageService.getValue(CACHE_KEYS.USER_PHONE)) || (await SecureStorageService.getValue('secure_user_phone'));
-        const savedCountry = (await SecureStorageService.getValue(CACHE_KEYS.USER_COUNTRY)) || (await SecureStorageService.getValue('secure_user_country'));
-        const savedEmail = (await SecureStorageService.getValue(CACHE_KEYS.USER_EMAIL)) || (await SecureStorageService.getValue('secure_user_email'));
-        const savedStatus = await AsyncStorage.getItem(CACHE_KEYS.IS_DATA_SAVED || '@is_data_saved');
+        const savedName = await SecureStorageService.getValue(CACHE_KEYS?.USER_NAME || 'USER_NAME');
+        const savedPhone = await SecureStorageService.getValue(CACHE_KEYS?.USER_PHONE || 'USER_PHONE');
+        const savedCountry = await SecureStorageService.getValue(CACHE_KEYS?.USER_COUNTRY || 'USER_COUNTRY');
+        const savedEmail = await SecureStorageService.getValue(CACHE_KEYS?.USER_EMAIL || 'USER_EMAIL');
+        const savedStatus = await AsyncStorage.getItem(CACHE_KEYS?.IS_DATA_SAVED || '@is_data_saved');
 
         if (savedName) {
           setUserName(savedName);
@@ -133,9 +134,9 @@ const SettingsScreen = () => {
     try {
       setIsProcessing(true);
       setErrors({});
-      const portfolioAssetsRaw = await AsyncStorage.getItem(CACHE_KEYS.PORTFOLIO_ASSETS || 'portfolio_assets');
-      const portfolioTarget = await AsyncStorage.getItem(CACHE_KEYS.PORTFOLIO_TARGET || 'portfolio_target');
-      const portfolioTotalValueRaw = await AsyncStorage.getItem(CACHE_KEYS.PORTFOLIO_TOTAL_VALUE || 'portfolio_total_value');
+      const portfolioAssetsRaw = await AsyncStorage.getItem(CACHE_KEYS?.PORTFOLIO_ASSETS || '@portfolio_assets');
+      const portfolioTarget = await AsyncStorage.getItem(CACHE_KEYS?.PORTFOLIO_TARGET || '@portfolio_target');
+      const portfolioTotalValueRaw = await AsyncStorage.getItem(CACHE_KEYS?.PORTFOLIO_TOTAL_VALUE || '@portfolio_total_value');
 
       const portfolioAssets = portfolioAssetsRaw ? JSON.parse(portfolioAssetsRaw) : [];
       const totalValueNum = portfolioTotalValueRaw ? parseFloat(portfolioTotalValueRaw) : 0;
@@ -212,7 +213,7 @@ const SettingsScreen = () => {
     try {
       Haptics.selectionAsync();
       await SecureStorageService.clearAllUserData();
-      await AsyncStorage.removeItem(CACHE_KEYS.IS_DATA_SAVED || '@is_data_saved');
+      await AsyncStorage.removeItem(CACHE_KEYS?.IS_DATA_SAVED || '@is_data_saved');
       setIsDataSaved(false);
       setErrors({});
     } catch (error) {

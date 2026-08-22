@@ -1,11 +1,14 @@
 // src/utils/secureStorageService.js
 import * as SecureStore from 'expo-secure-store';
 
-// دالة تطهير المفاتيح: تحول أي مفتاح يحتوي على @ أو مسافات إلى مفتاح صالح مقبول لدى Expo
+/**
+ * دالة تنظيف وتطهير المفاتيح:
+ * تقوم بتنظيف أي مفتاح يحتوي على @ أو مسافات أو رموز خاصة وتجعله صالحاً 100% لمكتبة Expo SecureStore
+ */
 const sanitizeKey = (key) => {
-  if (!key || typeof key !== 'string') return 'valid_default_key';
-  const cleaned = key.replace(/[^a-zA-Z0-9._-]/g, '_');
-  return cleaned || 'valid_fallback_key';
+  if (!key || typeof key !== 'string') return 'fallback_secure_key';
+  const clean = key.replace(/[^a-zA-Z0-9._-]/g, '_');
+  return clean || 'fallback_secure_key';
 };
 
 export const save = async (key, value) => {
@@ -51,19 +54,19 @@ export const deleteValue = async (key) => deleteKey(key);
 export const clearAllUserData = async () => {
   const keys = [
     'user_name', 'user_phone', 'user_country', 'user_email',
-    'secure_user_name', 'secure_user_phone', 'secure_user_country', 'secure_user_email'
+    'secure_user_name', 'secure_user_phone', 'secure_user_country', 'secure_user_email',
+    'USER_NAME', 'USER_PHONE', 'USER_COUNTRY', 'USER_EMAIL'
   ];
   for (const k of keys) {
     try {
       await SecureStore.deleteItemAsync(sanitizeKey(k));
     } catch (e) {
-      // تجاهل أي خطأ فردي
+      // تجاهل أخطاء المفاتيح النظيفة
     }
   }
   return true;
 };
 
-// كائن للتوافق مع جميع طرق الاستيراد (Default + Named Exports)
 const SecureStorageService = {
   save,
   load,
