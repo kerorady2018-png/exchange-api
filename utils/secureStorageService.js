@@ -1,78 +1,81 @@
-// src/utils/secureStorageService.js
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
-// دالة تطهير المفاتيح: تحول أي مفتاح يحتوي على @ أو مسافات إلى مفتاح صالح مقبول لدى Expo
-const sanitizeKey = (key) => {
-  if (!key || typeof key !== 'string') return 'valid_default_key';
-  const cleaned = key.replace(/[^a-zA-Z0-9._-]/g, '_');
-  return cleaned || 'valid_fallback_key';
-};
-
-export const save = async (key, value) => {
-  try {
-    const cleanKey = sanitizeKey(key);
-    const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
-    await SecureStore.setItemAsync(cleanKey, stringValue);
-    return true;
-  } catch (error) {
-    return false;
-  }
-};
-
-export const load = async (key) => {
-  try {
-    const cleanKey = sanitizeKey(key);
-    const result = await SecureStore.getItemAsync(cleanKey);
-    if (!result) return null;
-    try {
-      return JSON.parse(result);
-    } catch {
-      return result;
-    }
-  } catch (error) {
-    return null;
-  }
-};
-
-export const deleteKey = async (key) => {
-  try {
-    const cleanKey = sanitizeKey(key);
-    await SecureStore.deleteItemAsync(cleanKey);
-    return true;
-  } catch (error) {
-    return false;
-  }
-};
-
-export const getValue = async (key) => load(key);
-export const setValue = async (key, value) => save(key, value);
-export const deleteValue = async (key) => deleteKey(key);
-
-export const clearAllUserData = async () => {
-  const keys = [
-    'user_name', 'user_phone', 'user_country', 'user_email',
-    'secure_user_name', 'secure_user_phone', 'secure_user_country', 'secure_user_email'
-  ];
-  for (const k of keys) {
-    try {
-      await SecureStore.deleteItemAsync(sanitizeKey(k));
-    } catch (e) {
-      // تجاهل أي خطأ فردي
-    }
-  }
-  return true;
-};
-
-// كائن للتوافق مع جميع طرق الاستيراد (Default + Named Exports)
+/**
+ * خدمة التخزين الآمن الموحدة (Secure Storage Service)
+ * توفر طبقة حماية إضافية للبيانات الحساسة (الاسم، الهاتف، الإيميل)
+ * باستخدام تشفير KeyStore/Keychain الخاص بالجهاز.
+ */
 const SecureStorageService = {
-  save,
-  load,
-  delete: deleteKey,
-  deleteKey,
-  getValue,
-  setValue,
-  deleteValue,
-  clearAllUserData,
+  /**
+   * حفظ قيمة بشكل آمن
+   */
+  save: async (key, value) => {
+    try {
+      if (value === null || value === undefined) {
+        await SecureStore.deleteItemAsync(key);
+        return;
+      }
+      // تحويل القيمة لنص لأن SecureStore يقبل النصوص فقط
+      const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
+      await SecureStore.setItemAsync(key, stringValue);
+    } catch (error) {
+      console.error(`Error saving to SecureStore [${key}]:`, error);
+    }
+  },
+
+  /**
+   * استرجاع قيمة محفوظة
+   */
+  getValue: async (key) => {
+    try {
+      const result = await SecureStore.getItemAsync(key);
+      if (result) {
+        return result;
+      }
+      return null;
+    } catch (error) {
+      console.error(`Error fetching from SecureStore [${key}]:`, error);
+      return null;
+    }
+  },
+
+  /**
+   * استرجاع كائن (Object) محفوظ
+   */
+  getObject: async (key) => {
+    try {
+      const result = await SecureStore.getItemAsync(key);
+      if (result) {
+        return JSON.parse(result);
+      }
+      return null;
+    } catch (error) {
+      console.error(`Error fetching object from SecureStore [${key}]:`, error);
+      return null;
+    }
+  },
+
+  /**
+   * حذف مفتاح معين
+   */
+  remove: async (key) => {
+    try {
+      await SecureStore.deleteItemAsync(key);
+    } catch (error) {
+      console.error(`Error deleting from SecureStore [${key}]:`, error);
+    }
+  },
+
+  /**
+   * مسح كافة البيانات الحساسة (عند تسجيل الخروج مثلاً)
+   */
+  clearAllUserData: async () => {
+    const keys = ['@user_name', '@user_phone', '@user_email', '@user_country'];
+    for (const key of keys) {
+      await SecureStore.deleteItemAsync(key);
+    }
+  }
 };
 
 export default SecureStorageService;
