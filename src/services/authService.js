@@ -1,5 +1,4 @@
 // src/services/authService.js
-import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CryptoJS from 'crypto-js';
 import SecureStorageService from '../utils/secureStorageService';
@@ -9,9 +8,7 @@ const API_BASE_URL = 'https://exchange-api-sepia.vercel.app/api';
 const SYNC_SECRET = 'core-sync-v1-secret';
 
 let syncTimer = null;
-let lastSyncTime = 0;
 const DEBOUNCE_DELAY = CACHE_DURATIONS?.DEBOUNCE_DELAY || 3000;
-
 const MANUAL_SYNC_WINDOW = CACHE_DURATIONS?.SYNC_MANUAL || 24 * 60 * 60 * 1000;
 const AUTO_SYNC_WINDOW = CACHE_DURATIONS?.SYNC_AUTO || 48 * 60 * 60 * 1000;
 
@@ -21,34 +18,28 @@ const AuthService = {
   processSyncQueue: async () => {
     if (isSyncingQueue) return;
     try {
-      const pendingSync = await AsyncStorage.getItem(CACHE_KEYS?.PENDING_CLOUD_SYNC || '@pending_cloud_sync');
+      const pendingSync = await AsyncStorage.getItem(CACHE_KEYS.PENDING_CLOUD_SYNC);
       if (pendingSync === 'true') {
         isSyncingQueue = true;
-
-        const name = await SecureStorageService.load(CACHE_KEYS?.USER_NAME || 'USER_NAME');
-        const phone = await SecureStorageService.load(CACHE_KEYS?.USER_PHONE || 'USER_PHONE');
-        const email = await SecureStorageService.load(CACHE_KEYS?.USER_EMAIL || 'USER_EMAIL');
-        const country = await SecureStorageService.load(CACHE_KEYS?.USER_COUNTRY || 'USER_COUNTRY');
-        const portfolio = await AsyncStorage.getItem(CACHE_KEYS?.PORTFOLIO_ASSETS || 'portfolio_assets');
-        const total = await AsyncStorage.getItem(CACHE_KEYS?.PORTFOLIO_TOTAL_VALUE || 'portfolio_total_value');
-        const target = await AsyncStorage.getItem(CACHE_KEYS?.PORTFOLIO_TARGET || 'portfolio_target');
+        const name = await SecureStorageService.load(CACHE_KEYS.USER_NAME);
+        const phone = await SecureStorageService.load(CACHE_KEYS.USER_PHONE);
+        const email = await SecureStorageService.load(CACHE_KEYS.USER_EMAIL);
+        const country = await SecureStorageService.load(CACHE_KEYS.USER_COUNTRY);
+        const portfolio = await AsyncStorage.getItem(CACHE_KEYS.PORTFOLIO_ASSETS);
+        const total = await AsyncStorage.getItem(CACHE_KEYS.PORTFOLIO_TOTAL_VALUE);
+        const target = await AsyncStorage.getItem(CACHE_KEYS.PORTFOLIO_TARGET);
 
         if (name && (phone || email)) {
-          const result = await AuthService._performCloudSync({
+          await AuthService._performCloudSync({
             name,
             portfolio: portfolio ? JSON.parse(portfolio) : [],
             totalValue: total || 0,
             target
           }, `${country || '+20'}${phone || ''}`, email);
-
-          if (result.success) {
-            await AsyncStorage.setItem(CACHE_KEYS?.PENDING_CLOUD_SYNC || '@pending_cloud_sync', 'false');
-            await AsyncStorage.setItem(CACHE_KEYS?.PORTFOLIO_NEEDS_SYNC || '@portfolio_needs_sync', 'false');
-          }
         }
       }
     } catch (e) {
-      // صامت بدون تحذيرات
+      // صامت بدون إزعاج
     } finally {
       isSyncingQueue = false;
     }
@@ -56,9 +47,8 @@ const AuthService = {
 
   canSyncManually: async () => {
     try {
-      const lastManualSync = await AsyncStorage.getItem(CACHE_KEYS?.LAST_MANUAL_SYNC || '@last_manual_sync');
+      const lastManualSync = await AsyncStorage.getItem(CACHE_KEYS.LAST_MANUAL_SYNC);
       if (!lastManualSync) return { allowed: true };
-
       const timePassed = Date.now() - parseInt(lastManualSync, 10);
       if (timePassed < MANUAL_SYNC_WINDOW) {
         const remainingHours = Math.ceil((MANUAL_SYNC_WINDOW - timePassed) / (60 * 60 * 1000));
@@ -72,15 +62,12 @@ const AuthService = {
 
   shouldAutoSync: async () => {
     try {
-      const firstAssetTime = await AsyncStorage.getItem(CACHE_KEYS?.FIRST_ASSET_TIME || '@first_asset_time');
-      const lastAutoSync = await AsyncStorage.getItem(CACHE_KEYS?.LAST_AUTO_SYNC || '@last_auto_sync');
-      const needsSync = await AsyncStorage.getItem(CACHE_KEYS?.PORTFOLIO_NEEDS_SYNC || '@portfolio_needs_sync');
-
+      const firstAssetTime = await AsyncStorage.getItem(CACHE_KEYS.FIRST_ASSET_TIME);
+      const lastAutoSync = await AsyncStorage.getItem(CACHE_KEYS.LAST_AUTO_SYNC);
+      const needsSync = await AsyncStorage.getItem(CACHE_KEYS.PORTFOLIO_NEEDS_SYNC);
       if (!firstAssetTime || needsSync !== 'true') return false;
-
       const now = Date.now();
       const lastSync = lastAutoSync ? parseInt(lastAutoSync, 10) : parseInt(firstAssetTime, 10);
-
       return (now - lastSync >= AUTO_SYNC_WINDOW);
     } catch (e) {
       return false;
@@ -117,50 +104,28 @@ const AuthService = {
     const fullPhone = cleanPhone ? `${countryCode}${cleanPhone}` : '';
 
     try {
-      await SecureStorageService.save(CACHE_KEYS?.USER_NAME || 'USER_NAME', name.trim());
-      if (cleanPhone) await SecureStorageService.save(CACHE_KEYS?.USER_PHONE || 'USER_PHONE', cleanPhone);
-      await SecureStorageService.save(CACHE_KEYS?.USER_COUNTRY || 'USER_COUNTRY', countryCode || '+20');
-      if (cleanEmail) await SecureStorageService.save(CACHE_KEYS?.USER_EMAIL || 'USER_EMAIL', cleanEmail);
+      await SecureStorageService.save(CACHE_KEYS.USER_NAME, name.trim());
+      if (cleanPhone) await SecureStorageService.save(CACHE_KEYS.USER_PHONE, cleanPhone);
+      await SecureStorageService.save(CACHE_KEYS.USER_COUNTRY, countryCode || '+20');
+      if (cleanEmail) await SecureStorageService.save(CACHE_KEYS.USER_EMAIL, cleanEmail);
 
-      await AsyncStorage.setItem(CACHE_KEYS?.IS_DATA_SAVED || '@is_data_saved', 'true');
-      await AsyncStorage.setItem(CACHE_KEYS?.PENDING_CLOUD_SYNC || '@pending_cloud_sync', 'true');
-
-      const now = Date.now();
+      await AsyncStorage.setItem(CACHE_KEYS.IS_DATA_SAVED, 'true');
 
       if (isManual) {
         const check = await AuthService.canSyncManually();
         if (!check.allowed) {
           return { success: false, rate_limited: true, remainingHours: check.remainingHours };
         }
-
         const result = await AuthService._performCloudSync(userData, fullPhone, cleanEmail);
         if (result.success) {
-          lastSyncTime = now;
-          await AsyncStorage.setItem(CACHE_KEYS?.LAST_MANUAL_SYNC || '@last_manual_sync', lastSyncTime.toString());
-          await AsyncStorage.setItem(CACHE_KEYS?.PORTFOLIO_NEEDS_SYNC || '@portfolio_needs_sync', 'false');
-          await AsyncStorage.setItem(CACHE_KEYS?.PENDING_CLOUD_SYNC || '@pending_cloud_sync', 'false');
+          await AsyncStorage.setItem(CACHE_KEYS.LAST_MANUAL_SYNC, Date.now().toString());
+          await AsyncStorage.setItem(CACHE_KEYS.PORTFOLIO_NEEDS_SYNC, 'false');
+          await AsyncStorage.setItem(CACHE_KEYS.PENDING_CLOUD_SYNC, 'false');
         }
-        return result;
+        return { success: true };
       }
 
-      const autoSyncReady = await AuthService.shouldAutoSync();
-      if (!autoSyncReady) return { success: true, throttled: true };
-
-      if (syncTimer) clearTimeout(syncTimer);
-
-      return new Promise((resolve) => {
-        syncTimer = setTimeout(async () => {
-          const result = await AuthService._performCloudSync(userData, fullPhone, cleanEmail);
-          if (result.success) {
-            lastSyncTime = Date.now();
-            await AsyncStorage.setItem(CACHE_KEYS?.LAST_AUTO_SYNC || '@last_auto_sync', lastSyncTime.toString());
-            await AsyncStorage.setItem(CACHE_KEYS?.PORTFOLIO_NEEDS_SYNC || '@portfolio_needs_sync', 'false');
-            await AsyncStorage.setItem(CACHE_KEYS?.PENDING_CLOUD_SYNC || '@pending_cloud_sync', 'false');
-          }
-          resolve(result);
-        }, DEBOUNCE_DELAY);
-      });
-
+      return { success: true };
     } catch (error) {
       return { success: true, offline: true };
     }
@@ -180,14 +145,20 @@ const AuthService = {
 
       const signature = CryptoJS.HmacSHA256(JSON.stringify(payload), SYNC_SECRET).toString();
 
+      // مهلة محددة بـ 4 ثوانٍ فقط، بدون محاولات تكرار مزعجة
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+
       const response = await fetch(`${API_BASE_URL}/save-user`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${signature}`
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const data = await response.json();
@@ -205,7 +176,14 @@ const AuthService = {
     const fullPhone = cleanPhone ? `${countryCode}${cleanPhone}` : '';
 
     try {
-      const response = await fetch(`${API_BASE_URL}/get-user?phone=${encodeURIComponent(fullPhone)}&email=${encodeURIComponent(cleanEmail)}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+      const response = await fetch(`${API_BASE_URL}/get-user?phone=${encodeURIComponent(fullPhone)}&email=${encodeURIComponent(cleanEmail)}`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
       if (response.ok) {
         const data = await response.json();
         if (data.user) return { success: true, user: data.user };
@@ -219,30 +197,27 @@ const AuthService = {
   applyRestoredData: async (userData, currentCountryCode) => {
     try {
       if (!userData) return false;
-
       let purePhone = userData.phone || '';
       if (purePhone.startsWith(currentCountryCode)) {
         purePhone = purePhone.replace(currentCountryCode, '');
       }
 
-      await SecureStorageService.save(CACHE_KEYS?.USER_NAME || 'USER_NAME', userData.name);
-      await SecureStorageService.save(CACHE_KEYS?.USER_PHONE || 'USER_PHONE', purePhone);
-      await SecureStorageService.save(CACHE_KEYS?.USER_COUNTRY || 'USER_COUNTRY', currentCountryCode);
-      if (userData.email) await SecureStorageService.save(CACHE_KEYS?.USER_EMAIL || 'USER_EMAIL', userData.email.toLowerCase());
+      await SecureStorageService.save(CACHE_KEYS.USER_NAME, userData.name);
+      await SecureStorageService.save(CACHE_KEYS.USER_PHONE, purePhone);
+      await SecureStorageService.save(CACHE_KEYS.USER_COUNTRY, currentCountryCode);
+      if (userData.email) await SecureStorageService.save(CACHE_KEYS.USER_EMAIL, userData.email.toLowerCase());
 
       if (userData.portfolio) {
-        await AsyncStorage.setItem(CACHE_KEYS?.PORTFOLIO_ASSETS || 'portfolio_assets', JSON.stringify(userData.portfolio));
+        await AsyncStorage.setItem(CACHE_KEYS.PORTFOLIO_ASSETS, JSON.stringify(userData.portfolio));
       }
-
       if (userData.totalValue) {
-        await AsyncStorage.setItem(CACHE_KEYS?.PORTFOLIO_TOTAL_VALUE || 'portfolio_total_value', String(userData.totalValue));
+        await AsyncStorage.setItem(CACHE_KEYS.PORTFOLIO_TOTAL_VALUE, String(userData.totalValue));
       }
-
       if (userData.target) {
-        await AsyncStorage.setItem(CACHE_KEYS?.PORTFOLIO_TARGET || 'portfolio_target', String(userData.target));
+        await AsyncStorage.setItem(CACHE_KEYS.PORTFOLIO_TARGET, String(userData.target));
       }
 
-      await AsyncStorage.setItem(CACHE_KEYS?.IS_DATA_SAVED || '@is_data_saved', 'true');
+      await AsyncStorage.setItem(CACHE_KEYS.IS_DATA_SAVED, 'true');
       return true;
     } catch (error) {
       return false;

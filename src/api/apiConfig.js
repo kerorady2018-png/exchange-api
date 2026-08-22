@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-export const BASE_URL = 'https://exchange-api-sepia.vercel.app';
-export const STATIC_DATA_URL = `${BASE_URL}/data/rates.json`;
+export const BASE_URL = 'https://rosy-royal.vercel.app';
+export const STATIC_DATA_URL = `${BASE_URL}/static-data.json`;
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,

@@ -53,7 +53,7 @@ const SettingsScreen = () => {
         const savedPhone = await SecureStorageService.getValue(CACHE_KEYS?.USER_PHONE || 'USER_PHONE');
         const savedCountry = await SecureStorageService.getValue(CACHE_KEYS?.USER_COUNTRY || 'USER_COUNTRY');
         const savedEmail = await SecureStorageService.getValue(CACHE_KEYS?.USER_EMAIL || 'USER_EMAIL');
-        const savedStatus = await AsyncStorage.getItem(CACHE_KEYS?.IS_DATA_SAVED || '@is_data_saved');
+        const savedStatus = await AsyncStorage.getItem(CACHE_KEYS?.IS_DATA_SAVED || 'is_data_saved');
 
         if (savedName) {
           setUserName(savedName);
@@ -134,9 +134,9 @@ const SettingsScreen = () => {
     try {
       setIsProcessing(true);
       setErrors({});
-      const portfolioAssetsRaw = await AsyncStorage.getItem(CACHE_KEYS?.PORTFOLIO_ASSETS || '@portfolio_assets');
-      const portfolioTarget = await AsyncStorage.getItem(CACHE_KEYS?.PORTFOLIO_TARGET || '@portfolio_target');
-      const portfolioTotalValueRaw = await AsyncStorage.getItem(CACHE_KEYS?.PORTFOLIO_TOTAL_VALUE || '@portfolio_total_value');
+      const portfolioAssetsRaw = await AsyncStorage.getItem(CACHE_KEYS?.PORTFOLIO_ASSETS || 'portfolio_assets');
+      const portfolioTarget = await AsyncStorage.getItem(CACHE_KEYS?.PORTFOLIO_TARGET || 'portfolio_target');
+      const portfolioTotalValueRaw = await AsyncStorage.getItem(CACHE_KEYS?.PORTFOLIO_TOTAL_VALUE || 'portfolio_total_value');
 
       const portfolioAssets = portfolioAssetsRaw ? JSON.parse(portfolioAssetsRaw) : [];
       const totalValueNum = portfolioTotalValueRaw ? parseFloat(portfolioTotalValueRaw) : 0;
@@ -209,25 +209,30 @@ const SettingsScreen = () => {
     }
   };
 
+  // 🎯 تعديل جذري: تحديث حالة الشاشة فوراً وإزالة البيانات بغض النظر عن أخطاء التخزين
   const handleEditUserData = async () => {
+    Haptics.selectionAsync();
+
+    // 1️⃣ تحديث الشاشة فوراً ليفتح نموذج الإدخال ويشعر المستخدم بالاستجابة اللحظية
+    setIsDataSaved(false);
+    setUserName('');
+    setUserPhone('');
+    setUserEmail('');
+    setErrors({});
+
+    // 2️⃣ مسح البيانات المخزنة بشكل آمن وخلفي
     try {
-      Haptics.selectionAsync();
-      
-      // 1. مسح المفاتيح الآمنة
       await SecureStorageService.clearAllUserData();
-      
-      // 2. مسح حالة الحفظ
-      await AsyncStorage.removeItem(CACHE_KEYS?.IS_DATA_SAVED || '@is_data_saved');
-      
-      // 3. تفريغ المدخلات وحالة الشاشة لتفتح استمارة الإدخال من جديد
-      setUserName('');
-      setUserPhone('');
-      setUserEmail('');
-      setIsDataSaved(false);
-      setErrors({});
-      
-    } catch (error) {
-      console.error('Clear data error:', error);
+    } catch (e) {
+      // تجاهل
+    }
+
+    try {
+      await AsyncStorage.removeItem(CACHE_KEYS?.IS_DATA_SAVED || 'is_data_saved');
+      await AsyncStorage.removeItem('@is_data_saved');
+      await AsyncStorage.removeItem('is_data_saved');
+    } catch (e) {
+      // تجاهل
     }
   };
 
