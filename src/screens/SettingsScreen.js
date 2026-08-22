@@ -212,10 +212,20 @@ const SettingsScreen = () => {
   const handleEditUserData = async () => {
     try {
       Haptics.selectionAsync();
+      
+      // 1. مسح المفاتيح الآمنة
       await SecureStorageService.clearAllUserData();
+      
+      // 2. مسح حالة الحفظ
       await AsyncStorage.removeItem(CACHE_KEYS?.IS_DATA_SAVED || '@is_data_saved');
+      
+      // 3. تفريغ المدخلات وحالة الشاشة لتفتح استمارة الإدخال من جديد
+      setUserName('');
+      setUserPhone('');
+      setUserEmail('');
       setIsDataSaved(false);
       setErrors({});
+      
     } catch (error) {
       console.error('Clear data error:', error);
     }
