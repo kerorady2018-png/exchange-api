@@ -9,12 +9,12 @@ import { currencyInfo } from '../constants/currencyData';
 import { BaseCurrencyContext } from '../context/BaseCurrencyContext';
 import { SettingsContext } from '../context/SettingsContext';
 import { useTheme } from '../hooks/useTheme';
-import { getCurrenciesData } from '../services/currenciesCoreData';
 import ConnectionIndicator from '../components/layout/ConnectionIndicator';
 import errorHandler from '../services/errorHandler';
 import NeoBackground from '../components/layout/NeoBackground';
 import { getNeoStyles } from '../styles/NeoStyle';
 import { RatesContext } from '../context/RatesContext';
+import { getCurrenciesData } from '../services/currenciesCoreData'; // ✅ إضافة الـ import الناقص
 
 const STORAGE_KEY = '@rates_data';
 const PREV_RATES_KEY = '@previous_rates_data';
@@ -58,7 +58,7 @@ const RatesSkeleton = () => {
 };
 
 export default function RatesScreen() {
-  const { lastUpdated: contextLastUpdated } = useContext(RatesContext);
+  const { rates: contextRates, loadingRates: contextLoading, lastUpdated: contextLastUpdated, refreshRates } = useContext(RatesContext);
   const { t } = useTranslation();
   const { baseCurrency } = useContext(BaseCurrencyContext);
   const { favorites: contextFavorites, toggleFavorite, currencyAlerts, updateCurrencyAlert, removeCurrencyAlert } = useContext(SettingsContext);
@@ -66,13 +66,30 @@ export default function RatesScreen() {
   const { width: screenWidth } = useWindowDimensions();
   const neoStyles = getNeoStyles(colors, isDarkMode);
 
-  const [rates, setRates] = useState({});
+  // ✅ تعريف المتغيرات التي كانت ناقصة - مزامنة مع RatesContext
+  const [rates, setRates] = useState(contextRates || {});
+  const [loading, setLoading] = useState(contextLoading ?? true);
+  const [lastUpdated, setLastUpdated] = useState(contextLastUpdated || '');
+
+  // ✅ مزامنة تلقائية مع RatesContext عند تغير البيانات
+  useEffect(() => {
+    if (contextRates && Object.keys(contextRates).length > 0) {
+      setRates(contextRates);
+    }
+  }, [contextRates]);
+
+  useEffect(() => {
+    setLoading(contextLoading);
+  }, [contextLoading]);
+
+  useEffect(() => {
+    if (contextLastUpdated) setLastUpdated(contextLastUpdated);
+  }, [contextLastUpdated]);
+
   const [previousRates, setPreviousRates] = useState({});
   const [banqueMisrRates, setBanqueMisrRates] = useState({});
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isRefreshingManual, setIsRefreshingManual] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState('');
   const [favorites, setFavorites] = useState([]);
 
   const [reorderModalVisible, setReorderModalVisible] = useState(false);

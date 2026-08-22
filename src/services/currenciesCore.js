@@ -4,8 +4,8 @@ import { withRetry } from '../utils/networkUtils';
 
 export async function fetchCurrenciesFromApi() {
   try {
-    // قراءة من الملف الثابت data/rates.json فقط
-    const response = await withRetry(() => apiClient.get('/data/rates.json', {
+    // قراءة من الملف الثابت static-data.json فقط
+    const response = await withRetry(() => apiClient.get('/static-data.json', {
       timeout: 15000,
       headers: { 'Cache-Control': 'public, max-age=60' } // 60 ثانية
     }));

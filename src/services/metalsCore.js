@@ -3,12 +3,12 @@ import { apiClient } from '../api/apiConfig';
 import { withRetry } from '../utils/networkUtils';
 
 /**
- * جلب البيانات الخام من الملف الثابت data/rates.json فقط
+ * جلب البيانات الخام من الملف الثابت static-data.json فقط
  */
 export async function fetchRawMetalsApiData() {
   try {
-    // قراءة من الملف الثابت data/rates.json فقط
-    const response = await withRetry(() => apiClient.get('/data/rates.json', {
+    // قراءة من الملف الثابت static-data.json فقط
+    const response = await withRetry(() => apiClient.get('/static-data.json', {
       timeout: 15000,
       headers: { 'Cache-Control': 'public, max-age=60' }
     }));
