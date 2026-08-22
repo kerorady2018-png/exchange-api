@@ -2,13 +2,12 @@
 import * as SecureStore from 'expo-secure-store';
 
 /**
- * دالة تنظيف وتطهير المفاتيح:
- * تقوم بتنظيف أي مفتاح يحتوي على @ أو مسافات أو رموز خاصة وتجعله صالحاً 100% لمكتبة Expo SecureStore
+ * دالة لتطهير المفاتيح تماماً وحذف أي رمز غير مسموح به في SecureStore
  */
 const sanitizeKey = (key) => {
-  if (!key || typeof key !== 'string') return 'fallback_secure_key';
+  if (!key || typeof key !== 'string') return 'fallback_key';
   const clean = key.replace(/[^a-zA-Z0-9._-]/g, '_');
-  return clean || 'fallback_secure_key';
+  return clean.length > 0 ? clean : 'fallback_key';
 };
 
 export const save = async (key, value) => {
@@ -57,11 +56,13 @@ export const clearAllUserData = async () => {
     'secure_user_name', 'secure_user_phone', 'secure_user_country', 'secure_user_email',
     'USER_NAME', 'USER_PHONE', 'USER_COUNTRY', 'USER_EMAIL'
   ];
-  for (const k of keys) {
+
+  for (const rawKey of keys) {
     try {
-      await SecureStore.deleteItemAsync(sanitizeKey(k));
+      const cleanKey = sanitizeKey(rawKey);
+      await SecureStore.deleteItemAsync(cleanKey);
     } catch (e) {
-      // تجاهل أخطاء المفاتيح النظيفة
+      // تتجاهل أي خطأ فردي لضمان عدم توقف العملية
     }
   }
   return true;
