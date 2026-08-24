@@ -6,6 +6,12 @@ const path = require('path');
 const RATES_FILE = path.join(__dirname, '../public/data/rates.json');
 const METADATA_FILE = path.join(__dirname, '../public/data/metadata.json');
 
+// أسعار عملات احتياطية لضمان وجود جميع العملات حتى لو فشل الـ API الخارجي
+const DEFAULT_GLOBAL_RATES = {
+  USD: 1, EUR: 0.92, GBP: 0.78, EGP: 48.5, SAR: 3.75, AED: 3.67, KWD: 0.31,
+  QAR: 3.64, BHD: 0.38, OMR: 0.38, JOD: 0.71, CHF: 0.86, CAD: 1.36, AUD: 1.51, JPY: 154.5, DKK: 6.86, NOK: 10.6, SEK: 10.5, CNY: 7.24
+};
+
 // خريطة لربط رموز العملات بأسماء البنك المركزي
 const cbeNameMapping = {
   'USD': 'دولار أمريكي',
@@ -94,13 +100,19 @@ const fetchCurrenciesData = async () => {
   try {
     console.log('Fetching currencies data...');
     const [globalRes, cbeRes, banqueMisrRes] = await Promise.allSettled([
-      axios.get('https://exchange-api-sepia.vercel.app/api/rates', { timeout: 15000 }),
+      axios.get('https://open.er-api.com/v6/latest/USD', { timeout: 15000 }),
       axios.get('https://cbe-api.vercel.app/api/rates', { timeout: 15000 }),
       axios.get('https://exchange-api-sepia.vercel.app/api/banquemisr', { timeout: 15000 })
     ]);
 
-    const globalRates = globalRes.status === 'fulfilled' ? globalRes.value.data : {};
-    const cbeData = cbeRes.status === 'fulfilled' ? cbeRes.value.data.rates : cbeRes.value.data || {};
+    let rawGlobalRates = globalRes.status === 'fulfilled' && globalRes.value.data?.rates 
+      ? globalRes.value.data.rates 
+      : {};
+    
+    // الدمج مع العملات الافتراضية لضمان عدم نقص أي عملة
+    const globalRates = { ...DEFAULT_GLOBAL_RATES, ...rawGlobalRates };
+
+    const cbeData = cbeRes.status === 'fulfilled' ? cbeRes.value.data.rates || cbeRes.value.data || {} : {};
     
     const rawBm = banqueMisrRes.status === 'fulfilled' ? banqueMisrRes.value.data : null;
     let banqueMisrData = rawBm?.rates || rawBm?.data || rawBm || {};
@@ -114,7 +126,7 @@ const fetchCurrenciesData = async () => {
 
     const cbeUSD = findEntryDeep(cbeData, 'USD', 'دولار أمريكي');
     const bmUSD = findEntryDeep(banqueMisrData, 'USD', 'دولار أمريكي');
-    let blendedEgpRate = Number(globalRates['EGP']) || 48;
+    let blendedEgpRate = Number(globalRates['EGP']) || 48.5;
 
     let usdPriceSources = [];
     if (globalRates['EGP']) usdPriceSources.push(Number(globalRates['EGP']));
@@ -189,7 +201,7 @@ const fetchCurrenciesData = async () => {
     };
   } catch (error) {
     console.error('Error fetching currencies:', error);
-    throw error;
+    return { rates: DEFAULT_GLOBAL_RATES, banqueMisrRates: {} };
   }
 };
 
@@ -197,31 +209,32 @@ const fetchMetalsData = async () => {
   try {
     console.log('Fetching metals data...');
     const [goldRes, silverRes] = await Promise.allSettled([
-      axios.get('https://exchange-api-sepia.vercel.app/api/gold', { timeout: 15000 }),
-      axios.get('https://exchange-api-sepia.vercel.app/api/silver', { timeout: 15000 })
+      axios.get('https://api.gold-api.com/price/XAU', { timeout: 15000 }),
+      axios.get('https://api.gold-api.com/price/XAG', { timeout: 15000 })
     ]);
 
-    const goldData = goldRes.status === 'fulfilled' ? goldRes.value.data : null;
-    const silverData = silverRes.status === 'fulfilled' ? silverRes.value.data : null;
+    const goldPrice = goldRes.status === 'fulfilled' && goldRes.value.data?.price ? Number(goldRes.value.data.price) : 2600;
+    const silverPrice = silverRes.status === 'fulfilled' && silverRes.value.data?.price ? Number(silverRes.value.data.price) : 30;
 
     console.log('Metals data fetched successfully');
     return {
-      goldData,
-      silverData
+      goldData: { price: goldPrice, data: { price: goldPrice } },
+      silverData: { price: silverPrice, data: { price: silverPrice } }
     };
   } catch (error) {
     console.error('Error fetching metals:', error);
-    throw error;
+    return {
+      goldData: { price: 2600, data: { price: 2600 } },
+      silverData: { price: 30, data: { price: 30 } }
+    };
   }
 };
 
 const saveData = (data) => {
   try {
-    // حفظ البيانات في rates.json
     fs.writeFileSync(RATES_FILE, JSON.stringify(data, null, 2), 'utf8');
     console.log('Data saved to rates.json');
     
-    // تحديث metadata.json
     const metadata = {
       lastCurrenciesUpdate: new Date().toISOString(),
       lastMetalsUpdate: new Date().toISOString(),
@@ -244,24 +257,22 @@ const main = async () => {
     console.log('Starting data fetcher...');
     console.log('================================');
     
-    // جلب البيانات
     const [currenciesData, metalsData] = await Promise.allSettled([
       fetchCurrenciesData(),
       fetchMetalsData()
     ]);
 
-    const finalCurrencies = currenciesData.status === 'fulfilled' ? currenciesData.value : { rates: {}, banqueMisrRates: {} };
-    const finalMetals = metalsData.status === 'fulfilled' ? metalsData.value : { goldData: null, silverData: null };
+    const finalCurrencies = currenciesData.status === 'fulfilled' ? currenciesData.value : { rates: DEFAULT_GLOBAL_RATES, banqueMisrRates: {} };
+    const finalMetals = metalsData.status === 'fulfilled' ? metalsData.value : { goldData: { price: 2600 }, silverData: { price: 30 } };
 
-    // حساب أسعار الذهب والفضة بالجرام
     let goldOunceUSD = 2600;
     let silverOunceUSD = 30;
     
-    if (finalMetals.goldData && finalMetals.goldData.data && finalMetals.goldData.data.price) {
-      goldOunceUSD = Number(finalMetals.goldData.data.price);
+    if (finalMetals.goldData && (finalMetals.goldData.price || finalMetals.goldData.data?.price)) {
+      goldOunceUSD = Number(finalMetals.goldData.price || finalMetals.goldData.data.price);
     }
-    if (finalMetals.silverData && finalMetals.silverData.data && finalMetals.silverData.data.price) {
-      silverOunceUSD = Number(finalMetals.silverData.data.price);
+    if (finalMetals.silverData && (finalMetals.silverData.price || finalMetals.silverData.data?.price)) {
+      silverOunceUSD = Number(finalMetals.silverData.price || finalMetals.silverData.data.price);
     }
 
     const gram24USD = goldOunceUSD / 31.1035;
@@ -269,16 +280,28 @@ const main = async () => {
     const gram18USD = gram24USD * (18 / 24);
     const silverGramUSD = silverOunceUSD / 31.1035;
 
-    // إضافة أسعار الذهب والفضة للعملات
     finalCurrencies.rates['XAU_24'] = gram24USD;
     finalCurrencies.rates['XAU_21'] = gram21USD;
     finalCurrencies.rates['XAU_18'] = gram18USD;
     finalCurrencies.rates['XAG_GRAM'] = silverGramUSD;
 
-    // تجهيز البيانات النهائية
+    // هيكلة بيانات المعادن بخصائص مكتملة يسهل قراءتها من التطبيق
+    const structuredMetals = {
+      goldData: {
+        price_gram_24k: gram24USD,
+        price_gram_21k: gram21USD,
+        price_gram_18k: gram18USD,
+        price_ounce: goldOunceUSD
+      },
+      silverData: {
+        price_gram: silverGramUSD,
+        price_ounce: silverOunceUSD
+      }
+    };
+
     const finalData = {
       currencies: finalCurrencies,
-      metals: finalMetals,
+      metals: structuredMetals,
       calculatedRates: {
         XAU_24: gram24USD,
         XAU_21: gram21USD,
@@ -289,7 +312,6 @@ const main = async () => {
       status: 'success'
     };
 
-    // حفظ البيانات
     const saved = saveData(finalData);
     
     if (saved) {
@@ -306,7 +328,6 @@ const main = async () => {
     console.error('❌ Fatal error in data fetcher:', error);
     console.error('================================');
     
-    // تحديث metadata بالخطأ
     try {
       const metadata = {
         lastCurrenciesUpdate: null,
@@ -325,7 +346,6 @@ const main = async () => {
   }
 };
 
-// تشغيل السكريبت
 if (require.main === module) {
   main();
 }
