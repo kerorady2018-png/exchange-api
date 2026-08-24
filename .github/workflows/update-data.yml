@@ -1,0 +1,39 @@
+name: Update Exchange Data
+
+on:
+  schedule:
+    # التحديث كل 30 دقيقة
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # السماح بالتشغيل اليدوي
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        run: npm install axios
+        
+      - name: Run data fetcher
+        run: node scripts/data-fetcher.cjs
+        
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add public/data/rates.json public/data/metadata.json
+          git diff --staged --quiet || git commit -m "Update exchange data via GitHub Actions"
+          
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
