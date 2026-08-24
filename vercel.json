@@ -7,7 +7,7 @@
   ],
   "headers": [
     {
-      "source": "/data/(.*)",
+      "source": "/api/static-data",
       "headers": [
         {
           "key": "Cache-Control",

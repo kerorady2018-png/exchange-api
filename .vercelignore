@@ -6,10 +6,3 @@ node_modules
 .DS_Store
 *.log
 .env
-dist
-build
-.expo
-.local
-.vercel
-coverage
-*.tsbuildinfo
