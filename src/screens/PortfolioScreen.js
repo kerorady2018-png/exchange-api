@@ -82,7 +82,6 @@ const PortfolioSkeleton = () => {
           <View style={[styles.skeletonLineShort, { backgroundColor: skeletonColor, flex: 1, marginHorizontal: 4 }]} />
         </View>
       </Animated.View>
-
       {[1, 2, 3, 4].map((item) => (
         <Animated.View key={item} style={[styles.card, { backgroundColor: colors.cardBg, borderColor: colors.border, opacity }]}>
           <View style={styles.cardInfo}>
@@ -241,7 +240,9 @@ export default function PortfolioScreen() {
 
   const spinValue = useRef(new Animated.Value(0)).current;
   const isLoaded = useRef(false);
-  const saveTimeoutRef = useRef(null);
+  const isActiveRef = useRef(true); // ✅ الإصلاح: ref بدل isActive المحلي
+  const saveAssetsTimeoutRef = useRef(null);
+  const saveTargetTimeoutRef = useRef(null);
 
   const handleToggleHideValues = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -302,17 +303,12 @@ export default function PortfolioScreen() {
     if (refreshing || isRefreshingManual) {
       spinValue.setValue(0);
       animation = Animated.loop(
-        Animated.timing(spinValue, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        })
+        Animated.timing(spinValue, { toValue: 1, duration: 1000, useNativeDriver: true })
       );
       animation.start();
     } else {
       spinValue.stopAnimation();
     }
-
     return () => {
       if (animation) animation.stop();
       spinValue.stopAnimation();
@@ -349,7 +345,8 @@ export default function PortfolioScreen() {
           case 'XAU_18': priceInAppBase = base24 * (18 / 24); break;
           case 'XAU_14': priceInAppBase = base24 * (14 / 24); break;
           case 'XAU_COIN': priceInAppBase = base24 * (21 / 24) * 8; break;
-          case 'XAG_GRAM': case 'XAG_999': priceInAppBase = baseSilver; break;
+          case 'XAG_GRAM':
+          case 'XAG_999': priceInAppBase = baseSilver; break;
           default: priceInAppBase = Number(metRates[upperAssetKey]) || 0;
         }
       }
@@ -379,47 +376,28 @@ export default function PortfolioScreen() {
 
   useEffect(() => {
     if (!isLoaded.current) return;
-    
-    // Debounced saving to prevent lag
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-    
-    saveTimeoutRef.current = setTimeout(() => {
+    if (saveAssetsTimeoutRef.current) clearTimeout(saveAssetsTimeoutRef.current);
+    saveAssetsTimeoutRef.current = setTimeout(() => {
       AsyncStorage.setItem(CACHE_KEYS.PORTFOLIO_ASSETS, JSON.stringify(assets)).catch(() => {});
-      
       const rawTotal = assets.reduce((sum, asset) => sum + calculateAssetValue(asset), 0);
       AsyncStorage.setItem(CACHE_KEYS.PORTFOLIO_TOTAL_VALUE, String(rawTotal)).catch(() => {});
-    }, 500); // 500ms debounce
-    
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
+    }, 500);
+    return () => { if (saveAssetsTimeoutRef.current) clearTimeout(saveAssetsTimeoutRef.current); };
   }, [assets, calculateAssetValue]);
 
   useEffect(() => {
     if (!isLoaded.current) return;
-    
-    // Debounced saving for target
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-    
-    saveTimeoutRef.current = setTimeout(() => {
+    if (saveTargetTimeoutRef.current) clearTimeout(saveTargetTimeoutRef.current);
+    saveTargetTimeoutRef.current = setTimeout(() => {
       AsyncStorage.setItem(CACHE_KEYS.PORTFOLIO_TARGET, portfolioTarget).catch(() => {});
     }, 500);
-    
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
+    return () => { if (saveTargetTimeoutRef.current) clearTimeout(saveTargetTimeoutRef.current); };
   }, [portfolioTarget]);
 
+  // ✅ الإصلاح الجوهري: استخدام isActiveRef بدل isActive المحلي
   const loadStoredRates = useCallback(async (isManual = false) => {
-    let isActive = true;
+    isActiveRef.current = true;
+
     if (isManual) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setIsRefreshingManual(true);
@@ -430,9 +408,7 @@ export default function PortfolioScreen() {
       const storedTarget = await AsyncStorage.getItem(CACHE_KEYS.PORTFOLIO_TARGET);
       const storedHideValues = await AsyncStorage.getItem(CACHE_KEYS.PORTFOLIO_HIDE_VALUES);
 
-      if (isActive) {
-        // Radical Fix: Only update assets if we have NOT loaded them yet
-        // This prevents overwriting memory state with old storage data during additions
+      if (isActiveRef.current) {
         if (storedAssets && !isLoaded.current) {
           setAssets(JSON.parse(storedAssets));
         }
@@ -442,64 +418,61 @@ export default function PortfolioScreen() {
         setLoading(false);
       }
 
-      if (isManual) {
-        let parsedCurrencyRates = { USD: 1 };
-        let parsedMetalRates = {};
+      let parsedCurrencyRates = { USD: 1 };
+      let parsedMetalRates = {};
 
-        // دائماً false، لا forceRefresh لمنع الطلبات المباشرة
-        const cData = await getCurrenciesData(false);
-        if (isActive) parsedCurrencyRates = cData?.rates || { USD: 1 };
+      const cData = await getCurrenciesData(false);
+      if (isActiveRef.current && cData?.rates) parsedCurrencyRates = cData.rates;
 
-        const mData = await getMetalsData(baseCurrency, parsedCurrencyRates, false);
-        if (isActive) {
-          const flatMetals = {};
-          if (mData) {
-            Object.keys(mData).forEach(key => {
-              if (mData[key] && mData[key].price) flatMetals[key] = mData[key].price;
-            });
-          }
-          parsedMetalRates = flatMetals;
+      const mData = await getMetalsData(baseCurrency, parsedCurrencyRates, false);
+      if (isActiveRef.current) {
+        const flatMetals = {};
+        if (mData) {
+          Object.keys(mData).forEach(key => {
+            if (mData[key] && mData[key].price) flatMetals[key] = mData[key].price;
+          });
+        }
+        parsedMetalRates = flatMetals;
+        setCurrencyRates(parsedCurrencyRates);
+        setMetalRates(parsedMetalRates);
+        setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
 
-          setCurrencyRates(parsedCurrencyRates);
-          setMetalRates(parsedMetalRates);
-          setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-
-          const totalValue = assets.reduce((sum, asset) => sum + calculateAssetValueHelper(asset, parsedCurrencyRates, parsedMetalRates, baseCurrency), 0);
+        if (isManual) {
+          const totalValue = assets.reduce((sum, asset) =>
+            sum + calculateAssetValueHelper(asset, parsedCurrencyRates, parsedMetalRates, baseCurrency), 0);
           await trackPortfolioValue(totalValue, assets, parsedCurrencyRates, parsedMetalRates, baseCurrency);
 
-          // Load chart data in background to prevent UI lag
           setIsChartLoading(true);
           setTimeout(async () => {
             try {
               const updatedHistory = await getPortfolioHistory(activeChartTab);
-              const formattedHistory = updatedHistory.map((p, index) => ({
+              const formattedHistory = updatedHistory.map((p) => ({
                 value: p.value,
                 label: p.label || '',
                 date: p.date
               }));
-              setHistoryPoints(formattedHistory);
+              if (isActiveRef.current) setHistoryPoints(formattedHistory);
             } catch (error) {
               console.error('Error loading chart data:', error);
             } finally {
-              setIsChartLoading(false);
+              if (isActiveRef.current) setIsChartLoading(false);
             }
-          }, 100); // Small delay to prioritize UI updates
+          }, 100);
         }
       }
     } catch (error) {
       console.error('Error loading portfolio data:', error);
     } finally {
-      if (isActive) {
+      if (isActiveRef.current) {
         setRefreshing(false);
         setIsRefreshingManual(false);
       }
     }
-    return () => { isActive = false; };
   }, [baseCurrency, calculateAssetValueHelper]);
 
   useFocusEffect(
     useCallback(() => {
-      // التحميل لحظي من الذاكرة المحلية لتقليل اللاج
+      isActiveRef.current = true; // ✅ تفعيل عند الدخول للشاشة
       InteractionManager.runAfterInteractions(async () => {
         await loadStoredRates(false);
         const history = await getPortfolioHistory();
@@ -508,10 +481,10 @@ export default function PortfolioScreen() {
           label: index % 3 === 0 && p.date ? p.date.split('-').slice(1).reverse().join('/') : '',
           labelTextStyle: { color: colors.sectionHeader, fontSize: 8 }
         }));
-        setHistoryPoints(formattedHistory);
+        if (isActiveRef.current) setHistoryPoints(formattedHistory);
       });
       return () => {
-        // تنظيف عند الخروج لمنع التداخل
+        isActiveRef.current = false; // ✅ إيقاف عند الخروج من الشاشة
         setIsRefreshingManual(false);
       };
     }, [loadStoredRates, colors.sectionHeader])
@@ -519,7 +492,7 @@ export default function PortfolioScreen() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    loadStoredRates(false); // دائماً false، لا forceRefresh
+    loadStoredRates(false);
   }, [loadStoredRates]);
 
   const resetPerformance = () => {
@@ -582,7 +555,6 @@ export default function PortfolioScreen() {
           if (!val) AsyncStorage.setItem(CACHE_KEYS.FIRST_ASSET_TIME, Date.now().toString());
         });
       }
-
       setAssets(prevAssets => [...prevAssets, {
         id: Date.now().toString(),
         currency: newCurrency,
@@ -670,29 +642,20 @@ export default function PortfolioScreen() {
   const formattedTotal = useMemo(() => {
     const rawTotal = assets.reduce((sum, asset) => sum + calculateAssetValue(asset), 0);
     const num = isNaN(rawTotal) ? 0 : rawTotal;
-
     if (hideValues) return { integerPart: '••••', decimalPart: '' };
-
-    const parts = num.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).split('.');
-
+    const parts = num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).split('.');
     return { integerPart: parts[0], decimalPart: `.${parts[1] || '00'}` };
   }, [assets, calculateAssetValue, hideValues]);
 
   const getAssetPerformance = useCallback((asset) => {
     const currentValue = calculateAssetValue(asset);
     let effectiveInitial = asset.initialValue !== undefined ? asset.initialValue : currentValue;
-
     if (asset.initialCurrency && asset.initialCurrency !== baseCurrency) {
       const conversionRate = getRateForAsset(asset.initialCurrency, currencyRates, metalRates, baseCurrency);
       effectiveInitial = asset.initialValue * conversionRate;
     }
-
     const diff = currentValue - effectiveInitial;
     const percent = effectiveInitial > 0 ? (diff / effectiveInitial) * 100 : 0;
-
     return {
       currentValueFormatted: formatNumber(currentValue),
       diffFormatted: formatNumber(Math.abs(diff)),
@@ -711,14 +674,12 @@ export default function PortfolioScreen() {
     assets.forEach(asset => {
       const currentValue = calculateAssetValue(asset);
       totalCurrent += currentValue;
-
       let effectiveInitial = asset.initialValue !== undefined ? asset.initialValue : currentValue;
       if (asset.initialCurrency && asset.initialCurrency !== baseCurrency) {
         const conversionRate = getRateForAsset(asset.initialCurrency, currencyRates, metalRates, baseCurrency);
         effectiveInitial = asset.initialValue * conversionRate;
       }
       totalInitialAdjusted += effectiveInitial;
-
       const diff = currentValue - effectiveInitial;
       if (diff > 0.01) totalGains += diff;
       else if (diff < -0.01) totalLosses += Math.abs(diff);
@@ -726,7 +687,6 @@ export default function PortfolioScreen() {
 
     const netDiff = totalCurrent - totalInitialAdjusted;
     const netPercent = totalInitialAdjusted > 0 ? (netDiff / totalInitialAdjusted) * 100 : 0;
-
     return {
       totalGainsFormatted: formatNumber(totalGains),
       totalLossesFormatted: formatNumber(totalLosses),
@@ -742,7 +702,6 @@ export default function PortfolioScreen() {
     const tabDaysMap = { daily: 1, weekly: 7, monthly: 30, quarterly: 90, semiannual: 180, yearly: 365 };
     const periodDays = tabDaysMap[activeReportTab] || 1;
     const periodStartDate = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000);
-
     let pTotalCurrent = 0;
     let pInitialBase = 0;
     let pGains = 0;
@@ -751,22 +710,17 @@ export default function PortfolioScreen() {
     const assetReports = assets.map(asset => {
       const assetDate = asset.date ? new Date(asset.date) : now;
       if (assetDate > periodStartDate) return { id: asset.id, currency: asset.currency, amount: asset.amount, isNotActiveYet: true };
-
       const currentVal = calculateAssetValue(asset);
       let effectiveInitial = asset.initialValue !== undefined ? asset.initialValue : currentVal;
-
       if (asset.initialCurrency && asset.initialCurrency !== baseCurrency) {
         const conversionRate = getRateForAsset(asset.initialCurrency, currencyRates, metalRates, baseCurrency);
         effectiveInitial = asset.initialValue * conversionRate;
       }
-
       pTotalCurrent += currentVal;
       pInitialBase += effectiveInitial;
-
       const diff = currentVal - effectiveInitial;
       if (diff > 0.01) pGains += diff;
       else if (diff < -0.01) pLosses += Math.abs(diff);
-
       return {
         id: asset.id,
         currency: asset.currency,
@@ -781,7 +735,6 @@ export default function PortfolioScreen() {
     });
 
     const netDiff = pTotalCurrent - pInitialBase;
-
     return {
       totalValue: formatAlwaysVisibleNumber(pTotalCurrent),
       totalGains: formatAlwaysVisibleNumber(pGains),
@@ -799,7 +752,6 @@ export default function PortfolioScreen() {
       ? Object.keys(currencyRates).filter(k => !k.startsWith('XAU') && !k.startsWith('XAG'))
       : Object.keys(currencyInfo);
     const priorityOrder = ['EGP', 'USD', 'EUR', 'SAR', 'AED', 'GBP', 'KWD', 'QAR', 'BHD', 'OMR', 'JOD'];
-
     const sortedKeys = [...keys].sort((a, b) => {
       const indexA = favorites.indexOf(a);
       const indexB = favorites.indexOf(b);
@@ -813,21 +765,16 @@ export default function PortfolioScreen() {
       if (pB !== -1) return 1;
       return a.localeCompare(b);
     });
-
     return sortedKeys.map(c => ({
       label: `${currencyInfo[c]?.flag || '🌐'} ${c} - ${t(`currencies.${c}`, { defaultValue: currencyInfo[c]?.name || c })}`,
       value: c
     }));
   }, [currencyRates, t, favorites]);
 
-  // --- تصفية البيانات التاريخية للرسم البياني ---
   const filteredHistory = useMemo(() => {
     if (historyPoints.length === 0) return [];
-
-    // ملاحظة: historyPoints تأتي مرتبة من الأقدم للأحدث من getPortfolioHistory
     const now = new Date();
     let filterDate = new Date();
-
     switch (activeChartTab) {
       case '1W': filterDate.setDate(now.getDate() - 7); break;
       case '1M': filterDate.setMonth(now.getMonth() - 1); break;
@@ -838,40 +785,16 @@ export default function PortfolioScreen() {
       case 'ALL': return historyPoints;
       default: filterDate.setMonth(now.getMonth() - 1);
     }
-
-    // تصفية النقاط بناءً على التاريخ المختار
     const filtered = historyPoints.filter(p => {
-      // نفترض أن p.label تحتوى على التاريخ بتنسيق MM/DD من الكود السابق،
-      // ولكن historyPoints الحقيقية من getPortfolioHistory تحتوى على p.date الأصلي
-      // سنعتمد على p.timestamp إذا كان موجوداً أو نحول p.date
       const pointDate = p.timestamp ? new Date(p.timestamp) : new Date();
       return pointDate >= filterDate;
     });
-
-    // تنسيق الملصقات (Labels) ديناميكياً لتجنب الزحام
     return filtered.map((p, index) => {
       let label = '';
-      const totalPoints = filtered.length;
-
-      // منطق ذكي لإظهار الملصقات:
-      // 1. في حالة الأسبوع: أظهر كل الأيام
-      if (activeChartTab === '1W') {
-        label = p.label;
-      }
-      // 2. في حالة الشهر: أظهر ملصق كل 5 أيام
-      else if (activeChartTab === '1M') {
-        label = index % 5 === 0 ? p.label : '';
-      }
-      // 3. في حالة مدد أطول: أظهر ملصق كل 15 يوم أو بداية كل شهر
-      else {
-        label = index % 15 === 0 ? p.label : '';
-      }
-
-      return {
-        ...p,
-        label: label,
-        labelTextStyle: { color: colors.sectionHeader, fontSize: 8 }
-      };
+      if (activeChartTab === '1W') label = p.label;
+      else if (activeChartTab === '1M') label = index % 5 === 0 ? p.label : '';
+      else label = index % 15 === 0 ? p.label : '';
+      return { ...p, label, labelTextStyle: { color: colors.sectionHeader, fontSize: 8 } };
     });
   }, [historyPoints, activeChartTab, colors.sectionHeader]);
 
@@ -893,10 +816,12 @@ export default function PortfolioScreen() {
       <View style={[styles.container]}>
         <View style={styles.topIndicatorRow}><ConnectionIndicator /></View>
 
-        {/* 1. Header Row */}
+        {/* Header */}
         <View style={[neoStyles.floatingBar, { height: 60, paddingVertical: 0, paddingHorizontal: 12, justifyContent: 'flex-start', backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.7)', borderColor: colors.glassBorder, marginTop: 40, marginBottom: 15 }]}>
           <View style={[styles.headerTitleGroup, { flex: 1, justifyContent: 'flex-start', flexDirection: 'row', alignItems: 'center' }]}>
-            <Animated.View style={[{ width: 44, height: 44, marginRight: 8 }, { transform: [{ rotate: spin }] }]}><Image source={isDarkMode ? require('../assets/logo-white.png') : require('../assets/logo-black.png')} style={{ width: '100%', height: '100%' }} resizeMode="contain" /></Animated.View>
+            <Animated.View style={[{ width: 44, height: 44, marginRight: 8 }, { transform: [{ rotate: spin }] }]}>
+              <Image source={isDarkMode ? require('../assets/logo-white.png') : require('../assets/logo-black.png')} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
+            </Animated.View>
             <View style={{ flex: 1 }}>
               <Text style={[neoStyles.mainTitle, { fontSize: 18, fontWeight: '900', textAlign: 'left' }]} numberOfLines={1}>{t('portfolio.title')}</Text>
               {lastUpdated ? <Text style={{ color: colors.sectionHeader, fontSize: 9, fontWeight: '700', marginTop: -1, textAlign: 'left' }} numberOfLines={1}>{t('converter.last_updated')}: {lastUpdated}</Text> : null}
@@ -906,30 +831,17 @@ export default function PortfolioScreen() {
             <TouchableOpacity style={[styles.headerCircle, { width: 34, height: 34, borderRadius: 17, backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.7)', borderColor: colors.border, borderWidth: 1.2, justifyContent: 'center', alignItems: 'center' }]} onPress={() => { Haptics.selectionAsync(); setBellModalVisible(true); }}>
               <Ionicons name={hasAnyTarget ? "notifications" : "notifications-outline"} size={17} color={hasAnyTarget ? "#FF9500" : BRAND_COLOR} />
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.headerCircle, { width: 34, height: 34, borderRadius: 17, backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.7)', borderColor: colors.border, borderWidth: 1.2, justifyContent: 'center', alignItems: 'center' }]} onPress={() => loadStoredRates(false)} disabled={isRefreshingManual}>
+            <TouchableOpacity style={[styles.headerCircle, { width: 34, height: 34, borderRadius: 17, backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.7)', borderColor: colors.border, borderWidth: 1.2, justifyContent: 'center', alignItems: 'center' }]} onPress={() => loadStoredRates(true)} disabled={isRefreshingManual}>
               {isRefreshingManual ? <ActivityIndicator size="small" color={BRAND_COLOR} /> : <Ionicons name="refresh" size={17} color={BRAND_COLOR} />}
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* 2. Floating Stats Section */}
-        <View style={{
-          width: '100%',
-          maxWidth: 800,
-          alignSelf: 'center',
-          paddingHorizontal: 16,
-          paddingVertical: 10,
-          alignItems: 'center',
-          marginTop: 5,
-        }}>
-
+        {/* Stats Section */}
+        <View style={{ width: '100%', maxWidth: 800, alignSelf: 'center', paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center', marginTop: 5 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
             <Text style={[styles.totalLabel, { color: colors.text, opacity: 0.8 }]}>{t('portfolio.total_value')}</Text>
-            <TouchableOpacity
-              style={{ marginLeft: 10, padding: 4 }}
-              onPress={handleToggleHideValues}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity style={{ marginLeft: 10, padding: 4 }} onPress={handleToggleHideValues} activeOpacity={0.7}>
               <Ionicons name={hideValues ? "eye-off" : "eye"} size={18} color={hideValues ? "#FF3B30" : BRAND_COLOR} />
             </TouchableOpacity>
           </View>
@@ -961,19 +873,7 @@ export default function PortfolioScreen() {
 
           {/* Mini Sparkline Chart */}
           {historyPoints.length > 1 && (
-            <View style={{
-              width: '100%',
-              height: 60,
-              marginTop: 15,
-              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
-              borderRadius: 16,
-              overflow: 'hidden',
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingRight: 10,
-              borderWidth: 1,
-              borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'
-            }}>
+            <View style={{ width: '100%', height: 60, marginTop: 15, backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)', borderRadius: 16, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', paddingRight: 10, borderWidth: 1, borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)' }}>
               <View style={{ flex: 1, height: '100%', pointerEvents: 'none' }}>
                 {isChartLoading ? (
                   <ActivityIndicator size="small" color={BRAND_COLOR} />
@@ -1001,17 +901,7 @@ export default function PortfolioScreen() {
                   />
                 )}
               </View>
-              <TouchableOpacity
-                onPress={() => { Haptics.selectionAsync(); setChartModalVisible(true); }}
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  backgroundColor: BRAND_COLOR + '20',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}
-              >
+              <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setChartModalVisible(true); }} style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: BRAND_COLOR + '20', justifyContent: 'center', alignItems: 'center' }}>
                 <Ionicons name="stats-chart" size={16} color={BRAND_COLOR} />
               </TouchableOpacity>
             </View>
@@ -1029,6 +919,7 @@ export default function PortfolioScreen() {
           </View>
         </View>
 
+        {/* Assets List */}
         <FlatList
           data={assets}
           keyExtractor={(item) => item.id}
@@ -1105,7 +996,10 @@ export default function PortfolioScreen() {
           <View style={styles.modalContainer}>
             <View style={[styles.modalContent, { backgroundColor: colors.background, maxHeight: '90%', maxWidth: 800, alignSelf: 'center', width: '100%' }]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}><Ionicons name="bar-chart" size={20} color="#387c9f" style={{ marginRight: 8 }} /><Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>{t('portfolio.portfolio_reports')}</Text></View>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name="bar-chart" size={20} color="#387c9f" style={{ marginRight: 8 }} />
+                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>{t('portfolio.portfolio_reports')}</Text>
+                </View>
                 <TouchableOpacity onPress={() => setReportsModalVisible(false)} style={{ padding: 4 }}><Ionicons name="close" size={22} color={colors.text} /></TouchableOpacity>
               </View>
               <View style={styles.reportTabsContainer}>
@@ -1122,7 +1016,7 @@ export default function PortfolioScreen() {
                   <Text style={{ fontSize: 12, color: '#34C759', fontWeight: '600' }}>+{activeReportData.totalGains}</Text>
                   <Text style={{ fontSize: 12, color: '#FF3B30', fontWeight: '600' }}>-{activeReportData.totalLosses}</Text>
                   <Text style={{ fontSize: 12, fontWeight: 'bold', color: activeReportData.isEqual ? colors.sectionHeader : (activeReportData.isProfit ? '#34C759' : '#FF3B30') }}>
-                     {activeReportData.isEqual ? '0%' : `${activeReportData.isProfit ? '+' : ''}${activeReportData.netPercentFormatted}%`}
+                    {activeReportData.isEqual ? '0%' : `${activeReportData.isProfit ? '+' : ''}${activeReportData.netPercentFormatted}%`}
                   </Text>
                 </View>
               </View>
@@ -1131,20 +1025,22 @@ export default function PortfolioScreen() {
                 keyExtractor={(item) => `report_${item.id}`}
                 renderItem={({ item }) => (
                   <View style={[styles.reportItemCard, { backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.6)', borderColor: colors.border, borderWidth: 1.2 }]}>
-                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <Text style={{ color: colors.text, fontWeight: 'bold' }}>{t(`currencies.${item.currency}`, { defaultValue: item.currency })}</Text>
-                        <Text style={{ color: colors.text }}>{item.currentValue}</Text>
-                     </View>
-                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-                        <Text style={{ fontSize: 10, color: colors.sectionHeader }}>{formatNumber(item.amount)}</Text>
-                        <Text style={{ fontSize: 10, color: item.isEqual ? colors.sectionHeader : (item.isProfit ? '#34C759' : '#FF3B30') }}>
-                          {item.isNotActiveYet ? '---' : `${item.isProfit ? '+' : ''}${item.percentFormatted}%`}
-                        </Text>
-                     </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: colors.text, fontWeight: 'bold' }}>{t(`currencies.${item.currency}`, { defaultValue: item.currency })}</Text>
+                      <Text style={{ color: colors.text }}>{item.currentValue}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                      <Text style={{ fontSize: 10, color: colors.sectionHeader }}>{formatNumber(item.amount)}</Text>
+                      <Text style={{ fontSize: 10, color: item.isEqual ? colors.sectionHeader : (item.isProfit ? '#34C759' : '#FF3B30') }}>
+                        {item.isNotActiveYet ? '---' : `${item.isProfit ? '+' : ''}${item.percentFormatted}%`}
+                      </Text>
+                    </View>
                   </View>
                 )}
               />
-              <TouchableOpacity style={styles.confirmButton} onPress={() => setReportsModalVisible(false)}><Text style={styles.confirmButtonText}>{t('common.close')}</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.confirmButton} onPress={() => setReportsModalVisible(false)}>
+                <Text style={styles.confirmButtonText}>{t('common.close')}</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
@@ -1153,39 +1049,22 @@ export default function PortfolioScreen() {
         <Modal visible={chartModalVisible} animationType="slide" transparent={true} onRequestClose={() => setChartModalVisible(false)}>
           <View style={styles.modalContainer}>
             <View style={[styles.modalContent, { backgroundColor: colors.background, maxHeight: '95%', maxWidth: 800, alignSelf: 'center', width: '100%', paddingBottom: 10 }]}>
-              {/* Header */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Ionicons name="trending-up-outline" size={24} color={BRAND_COLOR} style={{ marginRight: 10 }} />
-                  <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>
-                    {t('portfolio.performance_analysis', { defaultValue: 'تحليل الأداء' })}
-                  </Text>
+                  <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>{t('portfolio.performance_analysis', { defaultValue: 'تحليل الأداء' })}</Text>
                 </View>
                 <TouchableOpacity onPress={() => setChartModalVisible(false)} style={{ padding: 6, backgroundColor: colors.cardBg, borderRadius: 20 }}>
                   <Ionicons name="close" size={24} color={colors.text} />
                 </TouchableOpacity>
               </View>
 
-              {/* Time Filter Buttons */}
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20, maxHeight: 45 }} contentContainerStyle={{ paddingRight: 20 }}>
                 {['1W', '1M', '3M', '6M', '9M', '1Y', 'ALL'].map((tab) => (
                   <TouchableOpacity
                     key={tab}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setActiveChartTab(tab);
-                    }}
-                    style={{
-                      paddingHorizontal: 16,
-                      paddingVertical: 8,
-                      borderRadius: 12,
-                      backgroundColor: activeChartTab === tab ? BRAND_COLOR : colors.cardBg,
-                      marginRight: 8,
-                      borderWidth: 1,
-                      borderColor: activeChartTab === tab ? BRAND_COLOR : colors.border,
-                      minWidth: 55,
-                      alignItems: 'center'
-                    }}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveChartTab(tab); }}
+                    style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, backgroundColor: activeChartTab === tab ? BRAND_COLOR : colors.cardBg, marginRight: 8, borderWidth: 1, borderColor: activeChartTab === tab ? BRAND_COLOR : colors.border, minWidth: 55, alignItems: 'center' }}
                   >
                     <Text style={{ color: activeChartTab === tab ? '#fff' : colors.sectionHeader, fontWeight: '800', fontSize: 12 }}>
                       {tab === 'ALL' ? t('common.all', { defaultValue: 'الكل' }) : tab}
@@ -1194,7 +1073,6 @@ export default function PortfolioScreen() {
                 ))}
               </ScrollView>
 
-              {/* Dynamic Scrollable Chart */}
               <View style={{ marginBottom: 20, alignItems: 'center', width: '100%', height: 260 }}>
                 {isChartLoading ? (
                   <ActivityIndicator size="large" color={BRAND_COLOR} />
@@ -1223,12 +1101,7 @@ export default function PortfolioScreen() {
                       yAxisThickness={0}
                       yAxisTextStyle={{ color: colors.sectionHeader, fontSize: 10 }}
                       noOfSections={5}
-                      xAxisLabelTextStyle={{
-                        color: colors.sectionHeader,
-                        fontSize: 8,
-                        opacity: 0.8,
-                        textAlign: 'center'
-                      }}
+                      xAxisLabelTextStyle={{ color: colors.sectionHeader, fontSize: 8, opacity: 0.8, textAlign: 'center' }}
                       stepHeight={40}
                       pointerConfig={{
                         pointerStripHeight: 220,
@@ -1239,25 +1112,9 @@ export default function PortfolioScreen() {
                         pointerLabelComponent: items => {
                           if (!items || !items.length || items[0]?.value === undefined) return null;
                           return (
-                            <View style={{
-                              padding: 12,
-                              backgroundColor: colors.cardBg,
-                              borderRadius: 14,
-                              borderWidth: 1,
-                              borderColor: colors.border,
-                              alignItems: 'center',
-                              bottom: 60,
-                              shadowColor: '#000',
-                              shadowOpacity: 0.1,
-                              shadowRadius: 10,
-                              minWidth: 100
-                            }}>
-                              <Text style={{ color: BRAND_COLOR, fontWeight: '900', fontSize: 15 }}>
-                                {Number(items[0].value).toLocaleString()}
-                              </Text>
-                              <Text style={{ color: colors.sectionHeader, fontSize: 10, marginTop: 4 }}>
-                                {items[0].label || ''}
-                              </Text>
+                            <View style={{ padding: 12, backgroundColor: colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: colors.border, alignItems: 'center', bottom: 60, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, minWidth: 100 }}>
+                              <Text style={{ color: BRAND_COLOR, fontWeight: '900', fontSize: 15 }}>{Number(items[0].value).toLocaleString()}</Text>
+                              <Text style={{ color: colors.sectionHeader, fontSize: 10, marginTop: 4 }}>{items[0].label || ''}</Text>
                             </View>
                           );
                         }
@@ -1271,24 +1128,17 @@ export default function PortfolioScreen() {
                 )}
               </View>
 
-              {/* Stats Summary Card */}
               <View style={{ padding: 20, borderRadius: 24, backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderWidth: 1, borderColor: colors.border }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
-                  <Text style={{ color: colors.sectionHeader, fontWeight: '700' }}>
-                    {t('portfolio.period_low', { defaultValue: 'أدنى قيمة' })}
-                  </Text>
+                  <Text style={{ color: colors.sectionHeader, fontWeight: '700' }}>{t('portfolio.period_low', { defaultValue: 'أدنى قيمة' })}</Text>
                   <Text style={{ color: colors.text, fontWeight: '900' }}>{minChartVal.toLocaleString()} {baseCurrency}</Text>
                 </View>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
-                  <Text style={{ color: colors.sectionHeader, fontWeight: '700' }}>
-                    {t('portfolio.period_high', { defaultValue: 'أعلى قيمة' })}
-                  </Text>
+                  <Text style={{ color: colors.sectionHeader, fontWeight: '700' }}>{t('portfolio.period_high', { defaultValue: 'أعلى قيمة' })}</Text>
                   <Text style={{ color: colors.text, fontWeight: '900' }}>{maxChartVal.toLocaleString()} {baseCurrency}</Text>
                 </View>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 15 }}>
-                  <Text style={{ color: colors.sectionHeader, fontWeight: '700' }}>
-                    {t('portfolio.net_growth', { defaultValue: 'صافي النمو' })}
-                  </Text>
+                  <Text style={{ color: colors.sectionHeader, fontWeight: '700' }}>{t('portfolio.net_growth', { defaultValue: 'صافي النمو' })}</Text>
                   <Text style={{ color: getPortfolioPerformance.isProfit ? '#34C759' : '#FF3B30', fontWeight: '900' }}>
                     {getPortfolioPerformance.isProfit ? '+' : ''}{getPortfolioPerformance.netPercentFormatted}%
                   </Text>
@@ -1308,13 +1158,21 @@ export default function PortfolioScreen() {
             <View style={[styles.modalContent, { backgroundColor: colors.background, maxWidth: 600, alignSelf: 'center', width: '100%' }]}>
               <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 12, color: colors.text }}>{editingAsset ? t("portfolio.edit_asset") : t("portfolio.add_asset")}</Text>
               <View style={styles.typeSelectorRow}>
-                <TouchableOpacity style={[styles.typeTab, { backgroundColor: assetType === 'currency' ? '#387c9f' : colors.cardBg }]} onPress={() => { setAssetType('currency'); setNewCurrency('USD'); }}><Text style={{ color: assetType === 'currency' ? '#fff' : colors.text, fontWeight: 'bold' }}>{t('portfolio.currencies_tab')}</Text></TouchableOpacity>
-                <TouchableOpacity style={[styles.typeTab, { backgroundColor: assetType === 'metal' ? '#f59e0b' : colors.cardBg }]} onPress={() => { setAssetType('metal'); setNewCurrency('XAU_21'); }}><Text style={{ color: assetType === 'metal' ? '#fff' : colors.text, fontWeight: 'bold' }}>{t('portfolio.metals')}</Text></TouchableOpacity>
+                <TouchableOpacity style={[styles.typeTab, { backgroundColor: assetType === 'currency' ? '#387c9f' : colors.cardBg }]} onPress={() => { setAssetType('currency'); setNewCurrency('USD'); }}>
+                  <Text style={{ color: assetType === 'currency' ? '#fff' : colors.text, fontWeight: 'bold' }}>{t('portfolio.currencies_tab')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.typeTab, { backgroundColor: assetType === 'metal' ? '#f59e0b' : colors.cardBg }]} onPress={() => { setAssetType('metal'); setNewCurrency('XAU_21'); }}>
+                  <Text style={{ color: assetType === 'metal' ? '#fff' : colors.text, fontWeight: 'bold' }}>{t('portfolio.metals')}</Text>
+                </TouchableOpacity>
               </View>
               <CustomPicker label={t('portfolio.select_currency')} selectedValue={newCurrency} onValueChange={setNewCurrency} items={assetType === 'currency' ? currencyOptions : metalOptions} isCurrencyPicker={assetType === 'currency'} />
               <TextInput style={[styles.input, { backgroundColor: colors.cardBg, borderColor: colors.border, color: colors.text }]} placeholder={t("common.amount")} keyboardType="numeric" value={newAmount} onChangeText={setNewAmount} />
-              <TouchableOpacity style={styles.confirmButton} onPress={saveAsset}><Text style={styles.confirmButtonText}>{t('common.save')}</Text></TouchableOpacity>
-              <TouchableOpacity onPress={closeModal}><Text style={styles.cancelButton}>{t('common.cancel')}</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.confirmButton} onPress={saveAsset}>
+                <Text style={styles.confirmButtonText}>{t('common.save')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={closeModal}>
+                <Text style={styles.cancelButton}>{t('common.cancel')}</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
@@ -1323,18 +1181,25 @@ export default function PortfolioScreen() {
         <Modal visible={bellModalVisible} animationType="slide" transparent={true} onRequestClose={() => setBellModalVisible(false)}>
           <View style={styles.modalContainer}>
             <View style={[styles.modalContent, { backgroundColor: colors.background, maxHeight: '85%', maxWidth: 600, alignSelf: 'center', width: '100%' }]}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}><Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>{t('portfolio.targets_notifications')}</Text><TouchableOpacity onPress={() => setBellModalVisible(false)}><Ionicons name="close" size={22} color={colors.text} /></TouchableOpacity></View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>{t('portfolio.targets_notifications')}</Text>
+                <TouchableOpacity onPress={() => setBellModalVisible(false)}>
+                  <Ionicons name="close" size={22} color={colors.text} />
+                </TouchableOpacity>
+              </View>
               <FlatList
                 data={assets}
                 keyExtractor={(item) => `target_${item.id}`}
                 renderItem={({ item }) => (
                   <View style={[styles.card, { backgroundColor: colors.cardBg, borderColor: colors.border, padding: 10 }]}>
-                     <Text style={{ color: colors.text, fontWeight: 'bold' }}>{t(`currencies.${item.currency}`, { defaultValue: item.currency })}</Text>
-                     <TextInput style={[styles.input, { height: 35, marginTop: 5 }]} placeholder={t('portfolio.target')} keyboardType="numeric" value={item.targetValue} onChangeText={(v) => updateTargetValue(item.id, v)} />
+                    <Text style={{ color: colors.text, fontWeight: 'bold' }}>{t(`currencies.${item.currency}`, { defaultValue: item.currency })}</Text>
+                    <TextInput style={[styles.input, { height: 35, marginTop: 5 }]} placeholder={t('portfolio.target')} keyboardType="numeric" value={item.targetValue} onChangeText={(v) => updateTargetValue(item.id, v)} />
                   </View>
                 )}
               />
-              <TouchableOpacity style={styles.confirmButton} onPress={() => setBellModalVisible(false)}><Text style={styles.confirmButtonText}>{t('common.done')}</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.confirmButton} onPress={() => setBellModalVisible(false)}>
+                <Text style={styles.confirmButtonText}>{t('common.done')}</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
@@ -1345,29 +1210,13 @@ export default function PortfolioScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 12 },
-  topBar: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 35 : 40,
-    right: 16,
-    zIndex: 1000,
-  },
-  floatingHeader: {
-    paddingHorizontal: 0,
-    marginTop: 25,
-    marginBottom: 25,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    zIndex: 99
-  },
+  topBar: { position: 'absolute', top: Platform.OS === 'ios' ? 35 : 40, right: 16, zIndex: 1000 },
+  floatingHeader: { paddingHorizontal: 0, marginTop: 25, marginBottom: 25, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 99 },
   headerTitleGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'transparent' },
   headerBtns: { flexDirection: 'row', gap: 8, backgroundColor: 'transparent' },
   headerCircle: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)' },
   listContent: { paddingHorizontal: 20, paddingBottom: 120, paddingTop: 30 },
-  proCard: {
-    marginBottom: 14,
-    padding: 14,
-  },
+  proCard: { marginBottom: 14, padding: 14 },
   proFlagText: { fontSize: 22 },
   proCodeText: { fontSize: 17, fontWeight: '800', letterSpacing: -0.5 },
   proNameText: { fontSize: 10, fontWeight: '600', marginTop: 1 },
@@ -1386,12 +1235,7 @@ const styles = StyleSheet.create({
   proSaveBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
   reorderGroup: { flexDirection: 'row', gap: 14 },
   reorderIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', alignItems: 'center' },
-  topIndicatorRow: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 35 : 40,
-    right: 16,
-    zIndex: 1000,
-  },
+  topIndicatorRow: { position: 'absolute', top: Platform.OS === 'ios' ? 35 : 40, right: 16, zIndex: 1000 },
   totalContainer: { padding: 16, borderRadius: 24, marginBottom: 12, borderWidth: 1.5 },
   absoluteBellButton: { position: 'absolute', top: 14, left: 14, width: 36, height: 36, borderRadius: 18, borderWidth: 1.2, justifyContent: 'center', alignItems: 'center', zIndex: 10 },
   headerRowContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, paddingLeft: 40 },

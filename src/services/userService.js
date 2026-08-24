@@ -1,30 +1,40 @@
-// services/userService.js
+// src/services/userService.js
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const LOCAL_STORAGE_KEY = '@user_portfolio_data';
+const API_BASE_URL = 'https://exchange-api-sepia.vercel.app';
 
 export const saveDataToAtlas = async (userData) => {
   try {
-    const response = await fetch('https://exchange-api.vercel.app/api/save-user', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: userData.name,       // اسم المستخدم (إجباري)
-        phone: userData.phone,     // رقم الهاتف
-        email: userData.email,     // البريد الإلكتروني
-        portfolio: userData.portfolio, // مصفوفة الأصول
-        totalValue: userData.totalValue // القيمة الإجمالية
-      }),
-    });
+    // 1. الحفظ المحلي المباشر لضمان تجربة حية وفعالة
+    await AsyncStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(userData));
+    console.log('✅ Portfolio saved locally');
 
-    const result = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(result.error || 'Failed to save data');
+    // 2. مزامنة الخلفية
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/save-user`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: userData.name,
+          phone: userData.phone,
+          email: userData.email,
+          portfolio: userData.portfolio,
+          totalValue: userData.totalValue
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        return result.user || userData;
+      }
+    } catch (cloudError) {
+      console.warn('⚠️ Cloud Sync Notice (Saved locally):', cloudError.message);
     }
 
-    return result.user;
+    return userData;
   } catch (error) {
-    console.error('Error in saving:', error.message);
+    console.error('❌ Error saving portfolio data:', error.message);
     throw error;
   }
 };
@@ -36,23 +46,24 @@ export const restoreDataFromAtlas = async (identifier) => {
       ? { email: identifier.trim().toLowerCase() } 
       : { phone: identifier.trim() };
 
-    const response = await fetch('https://exchange-api.vercel.app/api/get-user', {
+    const response = await fetch(`${API_BASE_URL}/api/get-user`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody),
     });
 
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.error || 'User not found');
+    if (response.ok) {
+      const result = await response.json();
+      if (result.user) return result.user;
     }
 
-    return result.user;
+    const localData = await AsyncStorage.getItem(LOCAL_STORAGE_KEY);
+    if (localData) return JSON.parse(localData);
+
+    throw new Error('User not found');
   } catch (error) {
-    console.error('Error in restoring:', error.message);
+    const localData = await AsyncStorage.getItem(LOCAL_STORAGE_KEY);
+    if (localData) return JSON.parse(localData);
     throw error;
   }
 };

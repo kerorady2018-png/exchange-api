@@ -1,22 +1,21 @@
 import React, { useContext, useMemo, useState, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, Switch, SafeAreaView, ActivityIndicator, TouchableOpacity, Linking, KeyboardAvoidingView, ScrollView, Platform, Image, Modal, FlatList, Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as BackgroundFetch from 'expo-background-fetch';
-import * as TaskManager from 'expo-task-manager';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { useNavigation } from '@react-navigation/native';
+
 import { SettingsContext } from '../context/SettingsContext';
 import { currencyInfo } from '../constants/currencyData';
 import { useTheme } from '../hooks/useTheme';
+import { CACHE_KEYS } from '../constants/cacheKeys';
 
 import CustomPicker from '../components/common/CustomPicker';
 import MultiSelectPicker from '../components/common/MultiSelectPicker';
 import BaseCurrencySelector from '../components/common/BaseCurrencySelector';
-import { useNavigation } from '@react-navigation/native';
 import AuthService from '../services/authService';
 import SecureStorageService from '../utils/secureStorageService';
-import * as Haptics from 'expo-haptics';
 
 const SettingsScreen = () => {
   const { i18n, t } = useTranslation();
@@ -46,16 +45,15 @@ const SettingsScreen = () => {
   const [countrySearchQuery, setCountrySearchQuery] = useState('');
   const [isDataSaved, setIsDataSaved] = useState(false);
   const [isAboutExpanded, setIsAboutExpanded] = useState(false);
-  const [showHelpCenter, setShowHelpCenter] = useState(false);
 
   useEffect(() => {
     const loadSavedUserData = async () => {
       try {
-        const savedName = await SecureStorageService.getValue('secure_user_name');
-        const savedPhone = await SecureStorageService.getValue('secure_user_phone');
-        const savedCountry = await SecureStorageService.getValue('secure_user_country');
-        const savedEmail = await SecureStorageService.getValue('secure_user_email');
-        const savedStatus = await AsyncStorage.getItem('@is_data_saved');
+        const savedName = await SecureStorageService.getValue(CACHE_KEYS?.USER_NAME || 'USER_NAME');
+        const savedPhone = await SecureStorageService.getValue(CACHE_KEYS?.USER_PHONE || 'USER_PHONE');
+        const savedCountry = await SecureStorageService.getValue(CACHE_KEYS?.USER_COUNTRY || 'USER_COUNTRY');
+        const savedEmail = await SecureStorageService.getValue(CACHE_KEYS?.USER_EMAIL || 'USER_EMAIL');
+        const savedStatus = await AsyncStorage.getItem(CACHE_KEYS?.IS_DATA_SAVED || 'is_data_saved');
 
         if (savedName) {
           setUserName(savedName);
@@ -136,12 +134,11 @@ const SettingsScreen = () => {
     try {
       setIsProcessing(true);
       setErrors({});
-      const portfolioAssetsRaw = await AsyncStorage.getItem('portfolio_assets');
-      const portfolioTarget = await AsyncStorage.getItem('portfolio_target');
-      const portfolioTotalValueRaw = await AsyncStorage.getItem('portfolio_total_value');
+      const portfolioAssetsRaw = await AsyncStorage.getItem(CACHE_KEYS?.PORTFOLIO_ASSETS || 'portfolio_assets');
+      const portfolioTarget = await AsyncStorage.getItem(CACHE_KEYS?.PORTFOLIO_TARGET || 'portfolio_target');
+      const portfolioTotalValueRaw = await AsyncStorage.getItem(CACHE_KEYS?.PORTFOLIO_TOTAL_VALUE || 'portfolio_total_value');
 
       const portfolioAssets = portfolioAssetsRaw ? JSON.parse(portfolioAssetsRaw) : [];
-      // Ensure we use the exact numeric value stored in AsyncStorage to avoid mismatch
       const totalValueNum = portfolioTotalValueRaw ? parseFloat(portfolioTotalValueRaw) : 0;
 
       const response = await AuthService.saveUser({
@@ -212,15 +209,30 @@ const SettingsScreen = () => {
     }
   };
 
+  // 🎯 تعديل جذري: تحديث حالة الشاشة فوراً وإزالة البيانات بغض النظر عن أخطاء التخزين
   const handleEditUserData = async () => {
+    Haptics.selectionAsync();
+
+    // 1️⃣ تحديث الشاشة فوراً ليفتح نموذج الإدخال ويشعر المستخدم بالاستجابة اللحظية
+    setIsDataSaved(false);
+    setUserName('');
+    setUserPhone('');
+    setUserEmail('');
+    setErrors({});
+
+    // 2️⃣ مسح البيانات المخزنة بشكل آمن وخلفي
     try {
-      Haptics.selectionAsync();
       await SecureStorageService.clearAllUserData();
+    } catch (e) {
+      // تجاهل
+    }
+
+    try {
+      await AsyncStorage.removeItem(CACHE_KEYS?.IS_DATA_SAVED || 'is_data_saved');
       await AsyncStorage.removeItem('@is_data_saved');
-      setIsDataSaved(false);
-      setErrors({});
-    } catch (error) {
-      console.error('Clear data error:', error);
+      await AsyncStorage.removeItem('is_data_saved');
+    } catch (e) {
+      // تجاهل
     }
   };
 
@@ -447,10 +459,6 @@ const styles = StyleSheet.create({
   countryItemFlag: { fontSize: 20 },
   countryItemName: { flex: 1, marginLeft: 10, fontSize: 15 },
   countryItemCode: { fontSize: 14, fontWeight: 'bold' },
-  helpModalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  helpModalContent: { width: '85%', borderRadius: 20, padding: 20, elevation: 10 },
-  helpItem: { flexDirection: 'row', alignItems: 'center', padding: 16, borderWidth: 1, borderRadius: 12, marginBottom: 12 },
-  helpItemText: { fontSize: 15, marginLeft: 15, fontWeight: '600' }
 });
 
 export default SettingsScreen;

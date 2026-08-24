@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { apiClient, STATIC_DATA_URL } from '../api/apiConfig';
+import { apiClient } from '../api/apiConfig';
 import { withRetry } from '../utils/networkUtils';
 
 /**

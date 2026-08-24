@@ -16,7 +16,7 @@ export const CACHE_KEYS = {
   // قراءة الملف الثابت
   LAST_STATIC_FILE_REQUEST: '@last_static_file_request',
   
-  // المستخدم والمصادقة
+  // المستخدم والمصادقة (مفاتيح آمنة بدون @ لـ SecureStore)
   USER_NAME: 'secure_user_name',
   USER_PHONE: 'secure_user_phone',
   USER_EMAIL: 'secure_user_email',
@@ -41,14 +41,16 @@ export const CACHE_KEYS = {
   ASSET_HISTORY_PREFIX: '@asset_value_history_',
   LAST_TRACK_DATE: '@last_history_track_date',
   
-  // الإعدادات
+  // الإعدادات والمفضلة (مع إضافة المفاتيح البديلة لمنع Undefined)
   FAVORITES: '@favorite_currencies',
+  FAVORITE_CURRENCIES: '@favorite_currencies', // للتوافق العكسي
   BASE_CURRENCY: '@base_currency',
   LANGUAGE: '@app_language',
   
   // المفاتيح القديمة (للتوافق)
   RATES_DATA: '@rates_data',
   PREV_RATES_DATA: '@previous_rates_data',
+  PREVIOUS_RATES_DATA: '@previous_rates_data', // للتوافق العكسي
   RATES_LAST_DATE: '@rates_last_date',
   ONBOARDING_COMPLETED: '@onboarding_completed',
   
@@ -57,12 +59,12 @@ export const CACHE_KEYS = {
 };
 
 export const CACHE_DURATIONS = {
-  CURRENCIES: 30 * 60 * 1000, // 30 دقيقة (موحد للعملات والمعادن)
-  METALS: 30 * 60 * 1000,     // 30 دقيقة (موحد للعملات والمعادن)
+  CURRENCIES: 30 * 60 * 1000, // 30 دقيقة
+  METALS: 30 * 60 * 1000,     // 30 دقيقة
   RATES_CONTEXT: 30 * 60 * 1000, // 30 دقيقة
   HISTORY_TRACKING: 24 * 60 * 60 * 1000, // 24 ساعة
   SYNC_MANUAL: 24 * 60 * 60 * 1000, // 24 ساعة
   SYNC_AUTO: 48 * 60 * 60 * 1000,   // 48 ساعة
-  DEBOUNCE_DELAY: 5 * 1000,          // 5 ثوانٍ
-  STATIC_FILE_READ_COOLDOWN: 5 * 60 * 1000, // 5 دقائق بين قراءات الملف الثابت
+  DEBOUNCE_DELAY: 3 * 1000,          // 3 ثوانٍ
+  STATIC_FILE_READ_COOLDOWN: 5 * 60 * 1000, // 5 دقائق
 };
