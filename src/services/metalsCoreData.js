@@ -33,12 +33,14 @@ const findCbeEntry = (cbeData, targetArabicName) => {
 
 /**
  * معالجة وحساب أسعار المعادن والأعيرة بناءً على البيانات الخام
+ * تم تحديثها لتدعم هيكل البيانات الجديد من الملف الثابت
  */
 function processMetalsData(rawApiData, baseCurrency = 'USD', forexRates = {}, customGoldRate = null) {
   const { goldData, silverData, cbeData, globalRates: apiGlobalRates } = rawApiData;
 
-  const goldOunceUSD = Number(goldData?.data?.price) || 0;
-  const silverOunceUSD = Number(silverData?.data?.price) || 0;
+  // دعم هيكل البيانات الجديد من الملف الثابت
+  const goldOunceUSD = Number(goldData?.price_ounce || goldData?.data?.price) || 0;
+  const silverOunceUSD = Number(silverData?.price_ounce || silverData?.data?.price) || 0;
   const globalRates = Object.keys(apiGlobalRates).length > 0 ? apiGlobalRates : forexRates;
 
   // 1. حساب سعر الصرف الرسمي البحت (خاص بالأونصات العالمية)
@@ -54,34 +56,61 @@ function processMetalsData(rawApiData, baseCurrency = 'USD', forexRates = {}, cu
   const goldOunceLocal = goldOunceUSD * officialUsdToBaseRate;
   const silverOunceLocal = silverOunceUSD * officialUsdToBaseRate;
 
-  // 2. حساب سعر الصرف المحلي الخاص بسوق الصاغة (يُستخدم للأعيرة والسبائك المحلية فقط)
-  let usdToBasePathRate = officialUsdToBaseRate;
-  if (baseCurrency !== 'USD') {
-    if (baseCurrency === 'EGP') {
-      if (customGoldRate) {
-        usdToBasePathRate = customGoldRate;
-      } else {
-        const cbeUSD = findCbeEntry(cbeData, 'دولار أمريكي');
-        let baseEgp = globalRates['EGP'] || 51.27;
+  // دعم البيانات المباشرة من الملف الثابت (price_gram_24k, price_gram_21k, price_gram_18k)
+  const gram24 = Number(goldData?.price_gram_24k) || 0;
+  const gram21 = Number(goldData?.price_gram_21k) || 0;
+  const gram18 = Number(goldData?.price_gram_18k) || 0;
+  const silverGram = Number(silverData?.price_gram) || 0;
 
-        if (cbeUSD && cbeUSD.buy && cbeUSD.sell && globalRates['EGP']) {
-          baseEgp = (globalRates['EGP'] + cbeUSD.buy + cbeUSD.sell) / 3;
-        }
-
-        const goldMarketMultiplier = 1.0143; 
-        usdToBasePathRate = baseEgp * goldMarketMultiplier;
-      }
-    } else {
-      usdToBasePathRate = officialUsdToBaseRate;
-    }
+  // إذا لم توجد البيانات المباشرة، احسبها من الأونصة
+  if (!gram24 && goldOunceLocal > 0) {
+    const calculatedGram24 = goldOunceLocal / 31.1035;
+    return {
+      XAU_OUNCE: { 
+        name: 'أونصة الذهب', 
+        price: goldOunceLocal, 
+        priceUSD: goldOunceUSD, 
+        unit: 'Ounce', 
+        icon: '🏆' 
+      },
+      XAU_24: { 
+        name: 'عيار 24', 
+        price: calculatedGram24, 
+        buyPrice: calculatedGram24 + BACKGROUND_MASNEIYYA['XAU_24'], 
+        unit: 'Gram', 
+        icon: '🪙' 
+      },
+      XAU_21: { 
+        name: 'عيار 21', 
+        price: calculatedGram24 * (21 / 24), 
+        buyPrice: calculatedGram24 * (21 / 24) + BACKGROUND_MASNEIYYA['XAU_21'], 
+        unit: 'Gram', 
+        icon: '🪙' 
+      },
+      XAU_18: { 
+        name: 'عيار 18', 
+        price: calculatedGram24 * (18 / 24), 
+        buyPrice: calculatedGram24 * (18 / 24) + BACKGROUND_MASNEIYYA['XAU_18'], 
+        unit: 'Gram', 
+        icon: '🪙' 
+      },
+      XAG_OUNCE: { 
+        name: 'أونصة الفضة', 
+        price: silverOunceLocal, 
+        priceUSD: silverOunceUSD, 
+        unit: 'Ounce', 
+        icon: '🥈' 
+      },
+      XAG_GRAM: { 
+        name: 'جرام الفضة', 
+        price: silverOunceLocal > 0 ? silverOunceLocal / 31.1035 : 0, 
+        unit: 'Gram', 
+        icon: '⚪' 
+      },
+    };
   }
 
-  const goldOunceLocalForGrams = goldOunceUSD * usdToBasePathRate;
-  const gram24 = goldOunceLocalForGrams > 0 ? goldOunceLocalForGrams / 31.1035 : 0;
-  const gram21 = gram24 > 0 ? gram24 * (21 / 24) : 0;
-  const gram18 = gram24 > 0 ? gram24 * (18 / 24) : 0;
-  const silverGram = silverOunceLocal > 0 ? silverOunceLocal / 31.1035 : 0;
-
+  // استخدام البيانات المباشرة من الملف الثابت
   return {
     XAU_OUNCE: { 
       name: 'أونصة الذهب', 
