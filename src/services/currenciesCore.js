@@ -6,16 +6,29 @@ export async function fetchCurrenciesFromApi() {
   try {
     // قراءة من endpoint الملف الثابت api/static-data فقط
     const response = await withRetry(() => apiClient.get('/api/static-data', {
-      timeout: 15000,
+      timeout: 8000, // تقليل من 15 ثانية إلى 8 ثواني للسرعة
       headers: { 'Cache-Control': 'public, max-age=60' } // 60 ثانية
     }));
 
-    if (response.data && response.data.currencies) {
-      const { currencies } = response.data;
+    const payload = response.data?.data || response.data;
+
+    if (payload && (payload.currencies || payload.rates)) {
+      const currencies = payload.currencies || {};
+      const rates = { ...(currencies.rates || payload.rates || {}) };
+
+      // دمج أسعار المعادن المحسوبة إن وجدت
+      if (payload.calculatedRates) {
+        Object.assign(rates, payload.calculatedRates);
+      }
+
+      // التأكد من وجود عملة USD
+      if (!rates['USD']) {
+        rates['USD'] = 1;
+      }
       
       return {
-        rates: currencies.rates || {},
-        banqueMisrRates: currencies.banqueMisrRates || {}
+        rates: rates,
+        banqueMisrRates: currencies.banqueMisrRates || payload.banqueMisrRates || {}
       };
     }
 

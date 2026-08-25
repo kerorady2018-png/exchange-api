@@ -131,6 +131,7 @@ function processMetalsData(rawApiData, baseCurrency = 'USD', forexRates = {}, cu
  * الوظيفة الرئيسية المسؤولة عن الكاش، استدعاء ملف الجلب، المعالجة، والتخزين
  * مدة الكاش: 30 دقيقة (موحدة مع العملات)
  * forceRefresh يتم تجاهله دائماً لمنع الطلبات المباشرة
+ * تم تحسينها للسرعة: استخدام الكاش المحلي أولاً دائماً
  */
 export async function getMetalsData(baseCurrency = 'USD', forexRates = {}, forceRefresh = false, customGoldRate = null) {
   const nowTime = Date.now();
@@ -141,13 +142,32 @@ export async function getMetalsData(baseCurrency = 'USD', forexRates = {}, force
   const lastStaticFileRequest = await AsyncStorage.getItem(CACHE_KEYS.LAST_STATIC_FILE_REQUEST);
   const timeSinceStaticRequest = lastStaticFileRequest ? nowTime - parseInt(lastStaticFileRequest) : Infinity;
 
-  // إذا مرت أقل من 5 دقائق على آخر قراءة للملف الثابت، استخدم الكاش المحلي
+  // إذا مرت أقل من 5 دقائق على آخر قراءة للملف الثابت، استخدم الكاش المحلي فوراً
   if (timeSinceStaticRequest < CACHE_DURATIONS.STATIC_FILE_READ_COOLDOWN) {
     const cachedData = await AsyncStorage.getItem(CACHE_KEYS.METALS);
     if (cachedData) {
       const parsed = JSON.parse(cachedData);
       return { ...parsed, _fromCache: true, _fromLocalCache: true, _lastUpdated: lastFetchTime };
     }
+  }
+
+  // أولاً: حاول استخدام الكاش المحلي للسرعة حتى قبل محاولة الشبكة
+  const cachedData = await AsyncStorage.getItem(CACHE_KEYS.METALS);
+  
+  if (cachedData) {
+    try {
+      const parsed = JSON.parse(cachedData);
+      
+      // قراءة من الملف الثابت في الخلفية لتحديث الكاش
+      fetchRawMetalsApiData().then(rawApiData => {
+        const aggregatedMetals = processMetalsData(rawApiData, baseCurrency, forexRates, customGoldRate);
+        AsyncStorage.setItem(CACHE_KEYS.METALS, JSON.stringify(aggregatedMetals));
+        AsyncStorage.setItem(CACHE_KEYS.METALS_TIME, Date.now().toString());
+        AsyncStorage.setItem(CACHE_KEYS.LAST_STATIC_FILE_REQUEST, Date.now().toString());
+      }).catch(() => {}); // تجاهل الأخطاء في الخلفية
+      
+      return { ...parsed, _fromCache: true, _fromLocalCache: true, _lastUpdated: lastFetchTime };
+    } catch (e) { /* proceed to fetch */ }
   }
 
   try {
@@ -164,10 +184,13 @@ export async function getMetalsData(baseCurrency = 'USD', forexRates = {}, force
 
     return { ...aggregatedMetals, _fromCache: false, _lastUpdated: nowTime };
   } catch (error) {
-    const cachedData = await AsyncStorage.getItem(CACHE_KEYS.METALS);
     if (cachedData) {
-      const parsed = JSON.parse(cachedData);
-      return { ...parsed, _fromCache: true, _isFallback: true };
+      try {
+        const parsed = JSON.parse(cachedData);
+        return { ...parsed, _fromCache: true, _isFallback: true };
+      } catch (e) {
+        throw error;
+      }
     }
     throw error;
   }

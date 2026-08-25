@@ -5,6 +5,7 @@ import { CACHE_KEYS, CACHE_DURATIONS } from '../constants/cacheKeys';
 /**
  * دالة الحصول على بيانات العملات مع التحكم في قراءة الملف الثابت
  * forceRefresh يتم تجاهله دائماً لمنع الطلبات المباشرة
+ * تم تحسينها للسرعة: استخدام الكاش المحلي أولاً دائماً
  */
 export async function getCurrenciesData(forceRefresh = false) {
   const nowTime = Date.now();
@@ -15,7 +16,7 @@ export async function getCurrenciesData(forceRefresh = false) {
   const lastStaticFileRequest = await AsyncStorage.getItem(CACHE_KEYS.LAST_STATIC_FILE_REQUEST);
   const timeSinceStaticRequest = lastStaticFileRequest ? nowTime - parseInt(lastStaticFileRequest) : Infinity;
 
-  // إذا مرت أقل من 5 دقائق على آخر قراءة للملف الثابت، استخدم الكاش المحلي
+  // إذا مرت أقل من 5 دقائق على آخر قراءة للملف الثابت، استخدم الكاش المحلي فوراً
   if (timeSinceStaticRequest < CACHE_DURATIONS.STATIC_FILE_READ_COOLDOWN) {
     const cachedRates = await AsyncStorage.getItem(CACHE_KEYS.CURRENCIES);
     const cachedBm = await AsyncStorage.getItem(CACHE_KEYS.BM_RATES);
@@ -32,6 +33,29 @@ export async function getCurrenciesData(forceRefresh = false) {
     }
   }
 
+  // أولاً: حاول استخدام الكاش المحلي للسرعة حتى قبل محاولة الشبكة
+  const cachedRates = await AsyncStorage.getItem(CACHE_KEYS.CURRENCIES);
+  const cachedBm = await AsyncStorage.getItem(CACHE_KEYS.BM_RATES);
+  
+  if (cachedRates && cachedBm) {
+    try {
+      // قراءة من الملف الثابت في الخلفية لتحديث الكاش
+      fetchCurrenciesFromApi().then(freshData => {
+        AsyncStorage.setItem(CACHE_KEYS.CURRENCIES, JSON.stringify(freshData.rates));
+        AsyncStorage.setItem(CACHE_KEYS.BM_RATES, JSON.stringify(freshData.banqueMisrRates));
+        AsyncStorage.setItem(CACHE_KEYS.CURRENCIES_TIME, Date.now().toString());
+        AsyncStorage.setItem(CACHE_KEYS.LAST_STATIC_FILE_REQUEST, Date.now().toString());
+      }).catch(() => {}); // تجاهل الأخطاء في الخلفية
+      
+      return {
+        rates: JSON.parse(cachedRates),
+        banqueMisrRates: JSON.parse(cachedBm),
+        _fromCache: true,
+        _fromLocalCache: true
+      };
+    } catch (e) { /* proceed to fetch */ }
+  }
+
   // قراءة من الملف الثابت
   try {
     const freshData = await fetchCurrenciesFromApi();
@@ -45,9 +69,6 @@ export async function getCurrenciesData(forceRefresh = false) {
     return { ...freshData, _fromCache: false, _lastUpdated: nowTime };
   } catch (error) {
     // Fallback to cache silently
-    const cachedRates = await AsyncStorage.getItem(CACHE_KEYS.CURRENCIES);
-    const cachedBm = await AsyncStorage.getItem(CACHE_KEYS.BM_RATES);
-
     if (cachedRates) {
       try {
         return {

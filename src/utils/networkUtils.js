@@ -1,8 +1,9 @@
 /**
  * دالة إعادة المحاولة الذكية (Exponential Backoff)
  * تساعد في التعامل مع انقطاعات الإنترنت المؤقتة أو ضغط السيرفر بشكل احترافي.
+ * تم تحسينها لتقليل البطء: محاولة واحدة فقط للسرعة
  */
-export const withRetry = async (fn, retries = 3, initialDelay = 1000) => {
+export const withRetry = async (fn, retries = 1, initialDelay = 500) => {
   let lastError;
 
   for (let i = 0; i < retries; i++) {
@@ -16,7 +17,12 @@ export const withRetry = async (fn, retries = 3, initialDelay = 1000) => {
         throw error;
       }
 
-      // حساب التأخير بشكل أسّي: 1s -> 2s -> 4s
+      // لا نعيد المحاولة في حالة Network Error للسرعة
+      if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+        throw error;
+      }
+
+      // حساب التأخير بشكل أسّي: 0.5s -> 1s (أسرع)
       const delay = initialDelay * Math.pow(2, i);
       console.log(`Retry attempt ${i + 1} after ${delay}ms due to: ${error.message}`);
 
