@@ -209,7 +209,7 @@ export default function RatesScreen() {
     const baseRate = contextRates[baseCurrency] || 1;
     const itemRate = contextRates[item] || 1;
     const calculatedRate = itemRate > 0 ? baseRate / itemRate : 0;
-    const formattedRate = Number(calculatedRate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+    const formattedRate = Number(calculatedRate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const change = getRateChange(item, calculatedRate);
     const bmDetails = contextBmRates[item];
 
@@ -260,12 +260,12 @@ export default function RatesScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
               <View style={{ alignItems: 'center', marginHorizontal: 8, minWidth: 48 }}>
                 <Text style={{ fontSize: 9, fontWeight: '800', color: colors.text, textTransform: 'uppercase', opacity: 0.6 }}>{t('common.buy')}</Text>
-                <Text style={{ fontSize: 14, fontWeight: '900', color: colors.text }}>{bmDetails.buy || bmDetails.purchase}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '900', color: colors.text }}>{Number(bmDetails.buy || bmDetails.purchase).toFixed(2)}</Text>
               </View>
               <View style={{ width: 1.5, height: 22, backgroundColor: colors.text, opacity: 0.15, marginHorizontal: 2 }} />
               <View style={{ alignItems: 'center', marginHorizontal: 8, minWidth: 48 }}>
                 <Text style={{ fontSize: 9, fontWeight: '800', color: colors.text, textTransform: 'uppercase', opacity: 0.6 }}>{t('common.sell')}</Text>
-                <Text style={{ fontSize: 14, fontWeight: '900', color: colors.text }}>{bmDetails.sell || bmDetails.sale}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '900', color: colors.text }}>{Number(bmDetails.sell || bmDetails.sale).toFixed(2)}</Text>
               </View>
             </View>
           ) : (
