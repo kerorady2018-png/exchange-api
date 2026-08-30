@@ -49,11 +49,11 @@ const SettingsScreen = () => {
   useEffect(() => {
     const loadSavedUserData = async () => {
       try {
-        const savedName = await SecureStorageService.getValue(CACHE_KEYS?.USER_NAME || 'USER_NAME');
-        const savedPhone = await SecureStorageService.getValue(CACHE_KEYS?.USER_PHONE || 'USER_PHONE');
-        const savedCountry = await SecureStorageService.getValue(CACHE_KEYS?.USER_COUNTRY || 'USER_COUNTRY');
-        const savedEmail = await SecureStorageService.getValue(CACHE_KEYS?.USER_EMAIL || 'USER_EMAIL');
-        const savedStatus = await AsyncStorage.getItem(CACHE_KEYS?.IS_DATA_SAVED || 'is_data_saved');
+        const savedName = await SecureStorageService.load(CACHE_KEYS.USER_NAME);
+        const savedPhone = await SecureStorageService.load(CACHE_KEYS.USER_PHONE);
+        const savedCountry = await SecureStorageService.load(CACHE_KEYS.USER_COUNTRY);
+        const savedEmail = await SecureStorageService.load(CACHE_KEYS.USER_EMAIL);
+        const savedStatus = await AsyncStorage.getItem(CACHE_KEYS.IS_DATA_SAVED);
 
         if (savedName) {
           setUserName(savedName);
@@ -134,9 +134,9 @@ const SettingsScreen = () => {
     try {
       setIsProcessing(true);
       setErrors({});
-      const portfolioAssetsRaw = await AsyncStorage.getItem(CACHE_KEYS?.PORTFOLIO_ASSETS || 'portfolio_assets');
-      const portfolioTarget = await AsyncStorage.getItem(CACHE_KEYS?.PORTFOLIO_TARGET || 'portfolio_target');
-      const portfolioTotalValueRaw = await AsyncStorage.getItem(CACHE_KEYS?.PORTFOLIO_TOTAL_VALUE || 'portfolio_total_value');
+      const portfolioAssetsRaw = await AsyncStorage.getItem(CACHE_KEYS.PORTFOLIO_ASSETS);
+      const portfolioTarget = await AsyncStorage.getItem(CACHE_KEYS.PORTFOLIO_TARGET);
+      const portfolioTotalValueRaw = await AsyncStorage.getItem(CACHE_KEYS.PORTFOLIO_TOTAL_VALUE);
 
       const portfolioAssets = portfolioAssetsRaw ? JSON.parse(portfolioAssetsRaw) : [];
       const totalValueNum = portfolioTotalValueRaw ? parseFloat(portfolioTotalValueRaw) : 0;
@@ -228,9 +228,7 @@ const SettingsScreen = () => {
     }
 
     try {
-      await AsyncStorage.removeItem(CACHE_KEYS?.IS_DATA_SAVED || 'is_data_saved');
-      await AsyncStorage.removeItem('@is_data_saved');
-      await AsyncStorage.removeItem('is_data_saved');
+      await AsyncStorage.removeItem(CACHE_KEYS.IS_DATA_SAVED);
     } catch (e) {
       // تجاهل
     }
