@@ -168,8 +168,19 @@ export default function RatesScreen() {
     const prevRate = previousRates[item] || currentRate;
     const diff = currentRate - prevRate;
     const percent = prevRate > 0 ? (diff / prevRate) * 100 : 0;
+    
+    // تنسيق النسبة المئوية لرقم أو رقمين فقط
+    let percentFormatted;
+    if (Math.abs(percent) >= 100) {
+      percentFormatted = Math.abs(percent).toFixed(0); // للأرقام الكبيرة (123%)
+    } else if (Math.abs(percent) >= 10) {
+      percentFormatted = Math.abs(percent).toFixed(1); // للأرقام المتوسطة (12.3%)
+    } else {
+      percentFormatted = Math.abs(percent).toFixed(2); // للأرقام الصغيرة (1.23%)
+    }
+    
     return {
-      percentFormatted: Math.abs(percent).toFixed(2),
+      percentFormatted,
       isUp: diff > 0,
       isEqual: Math.abs(percent) < 0.01
     };
