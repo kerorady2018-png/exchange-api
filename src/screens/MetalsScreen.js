@@ -71,7 +71,7 @@ export default function MetalsScreen() {
     let isActive = true;
     if (isManual) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      // دائماً false، لا forceRefresh لمنع الطلبات المباشرة
+      // دائماً false، لا forceRefresh للالتزام التام باستراتيجية الكاش (15 دقيقة للمعادن)
       const data = await getMetalsData(baseCurrency, {}, false);
       if (isActive) {
         setMetalsData(data || {});

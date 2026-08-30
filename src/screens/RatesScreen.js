@@ -58,7 +58,13 @@ const RatesSkeleton = () => {
 };
 
 export default function RatesScreen() {
-  const { rates: contextRates, loadingRates: contextLoading, lastUpdated: contextLastUpdated, refreshRates } = useContext(RatesContext);
+  const {
+    rates: contextRates,
+    banqueMisrRates: contextBmRates,
+    loadingRates: contextLoading,
+    lastUpdated: contextLastUpdated,
+    refreshRates
+  } = useContext(RatesContext);
   const { t } = useTranslation();
   const { baseCurrency } = useContext(BaseCurrencyContext);
   const { favorites: contextFavorites, toggleFavorite, currencyAlerts, updateCurrencyAlert, removeCurrencyAlert } = useContext(SettingsContext);
@@ -66,31 +72,18 @@ export default function RatesScreen() {
   const { width: screenWidth } = useWindowDimensions();
   const neoStyles = getNeoStyles(colors, isDarkMode);
 
-  // ✅ تعريف المتغيرات التي كانت ناقصة - مزامنة مع RatesContext
-  const [rates, setRates] = useState(contextRates || {});
-  const [loading, setLoading] = useState(contextLoading ?? true);
-  const [lastUpdated, setLastUpdated] = useState(contextLastUpdated || '');
-
-  // ✅ مزامنة تلقائية مع RatesContext عند تغير البيانات
-  useEffect(() => {
-    if (contextRates && Object.keys(contextRates).length > 0) {
-      setRates(contextRates);
-    }
-  }, [contextRates]);
-
-  useEffect(() => {
-    setLoading(contextLoading);
-  }, [contextLoading]);
-
-  useEffect(() => {
-    if (contextLastUpdated) setLastUpdated(contextLastUpdated);
-  }, [contextLastUpdated]);
-
   const [previousRates, setPreviousRates] = useState({});
-  const [banqueMisrRates, setBanqueMisrRates] = useState({});
-  const [refreshing, setRefreshing] = useState(false);
   const [isRefreshingManual, setIsRefreshingManual] = useState(false);
   const [favorites, setFavorites] = useState([]);
+
+  // تتبع التغير في الأسعار للمؤشرات البصرية
+  useEffect(() => {
+    if (contextRates && Object.keys(contextRates).length > 0) {
+      if (Object.keys(previousRates).length === 0) {
+        setPreviousRates({ ...contextRates });
+      }
+    }
+  }, [contextRates]);
 
   const [reorderModalVisible, setReorderModalVisible] = useState(false);
   const [tempFavorites, setTempFavorites] = useState([]);
@@ -102,7 +95,7 @@ export default function RatesScreen() {
 
   useEffect(() => {
     let animation;
-    if (refreshing || isRefreshingManual) {
+    if (isRefreshingManual) {
       logoSpinAnim.setValue(0);
       animation = Animated.loop(
         Animated.timing(logoSpinAnim, { toValue: 1, duration: 1000, useNativeDriver: true })
@@ -113,7 +106,7 @@ export default function RatesScreen() {
       logoSpinAnim.setValue(0);
     }
     return () => { if (animation) animation.stop(); };
-  }, [refreshing, isRefreshingManual, logoSpinAnim]);
+  }, [isRefreshingManual, logoSpinAnim]);
 
   const headerLogoSpin = logoSpinAnim.interpolate({
     inputRange: [0, 1],
@@ -134,42 +127,23 @@ export default function RatesScreen() {
     syncFavorites();
   }, [contextFavorites]);
 
-  const ratesRef = useRef(rates);
-  
-  useEffect(() => {
-    ratesRef.current = rates;
-  }, [rates]);
-
-  const fetchRates = useCallback(async (isManual = false) => {
-    if (isManual) setIsRefreshingManual(true);
-    else setLoading(true);
+  const handleRefresh = async () => {
+    setIsRefreshingManual(true);
     try {
-      // دائماً false، لا forceRefresh لمنع الطلبات المباشرة
-      const data = await getCurrenciesData(false);
-      if (data) {
-        if (Object.keys(ratesRef.current).length > 0) {
-          setPreviousRates({ ...ratesRef.current });
-        }
-        
-        setRates(data.rates || {});
-        setBanqueMisrRates(data.banqueMisrRates || {});
-        
-        if (data._lastUpdated) {
-          const date = new Date(data._lastUpdated);
-          setLastUpdated(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-        } else {
-          setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-        }
+      if (contextRates && Object.keys(contextRates).length > 0) {
+        setPreviousRates({ ...contextRates });
       }
-    } catch (error) { errorHandler.handleError(error); }
-    finally { setLoading(false); setRefreshing(false); setIsRefreshingManual(false); }
-  }, []);
-
-  useEffect(() => { fetchRates(); }, [fetchRates]);
+      await refreshRates();
+    } catch (error) {
+      errorHandler.handleError(error);
+    } finally {
+      setIsRefreshingManual(false);
+    }
+  };
 
   const sortedRates = useMemo(() => {
-    const allKeys = Object.keys(rates);
-    const baseRateValue = rates[baseCurrency] || 1;
+    const allKeys = Object.keys(contextRates);
+    const baseRateValue = contextRates[baseCurrency] || 1;
 
     return allKeys.sort((a, b) => {
       const aIsFav = contextFavorites.includes(a);
@@ -178,17 +152,17 @@ export default function RatesScreen() {
       if (aIsFav && !bIsFav) return -1;
       if (!aIsFav && bIsFav) return 1;
 
-      const aHasBM = !!banqueMisrRates[a];
-      const bHasBM = !!banqueMisrRates[b];
+      const aHasBM = !!contextBmRates[a];
+      const bHasBM = !!contextBmRates[b];
       if (aHasBM && !bHasBM) return -1;
       if (!aHasBM && bHasBM) return 1;
 
-      const rateA = rates[a] > 0 ? baseRateValue / rates[a] : 0;
-      const rateB = rates[b] > 0 ? baseRateValue / rates[b] : 0;
+      const rateA = contextRates[a] > 0 ? baseRateValue / contextRates[a] : 0;
+      const rateB = contextRates[b] > 0 ? baseRateValue / contextRates[b] : 0;
 
       return rateB - rateA;
     });
-  }, [rates, contextFavorites, baseCurrency, banqueMisrRates]);
+  }, [contextRates, contextFavorites, baseCurrency, contextBmRates]);
 
   const getRateChange = useCallback((item, currentRate) => {
     const prevRate = previousRates[item] || currentRate;
@@ -232,12 +206,12 @@ export default function RatesScreen() {
 
   const renderCurrencyItem = useCallback(({ item }) => {
     const isFav = contextFavorites.includes(item);
-    const baseRate = rates[baseCurrency] || 1;
-    const itemRate = rates[item] || 1;
+    const baseRate = contextRates[baseCurrency] || 1;
+    const itemRate = contextRates[item] || 1;
     const calculatedRate = itemRate > 0 ? baseRate / itemRate : 0;
     const formattedRate = Number(calculatedRate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
     const change = getRateChange(item, calculatedRate);
-    const bmDetails = banqueMisrRates[item];
+    const bmDetails = contextBmRates[item];
 
     return (
       <TouchableOpacity
@@ -281,20 +255,24 @@ export default function RatesScreen() {
           </View>
         </View>
 
-        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' }}>
-          {bmDetails ? (
-            <>
-              <View style={{ alignItems: 'center', marginHorizontal: 8, backgroundColor: 'transparent' }}>
-                <Text style={{ fontSize: 9, fontWeight: '800', color: colors.text, textTransform: 'uppercase', opacity: 0.8 }}>{t('common.buy')}</Text>
-                <Text style={{ fontSize: 13, fontWeight: '900', color: colors.text }}>{bmDetails.buy}</Text>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', minHeight: 45 }}>
+          {bmDetails && (bmDetails.buy || bmDetails.purchase) ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ alignItems: 'center', marginHorizontal: 8, minWidth: 48 }}>
+                <Text style={{ fontSize: 9, fontWeight: '800', color: colors.text, textTransform: 'uppercase', opacity: 0.6 }}>{t('common.buy')}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '900', color: colors.text }}>{bmDetails.buy || bmDetails.purchase}</Text>
               </View>
-              <View style={{ width: 1.5, height: 18, backgroundColor: colors.text, opacity: 0.2, marginHorizontal: 4 }} />
-              <View style={{ alignItems: 'center', marginHorizontal: 8, backgroundColor: 'transparent' }}>
-                <Text style={{ fontSize: 9, fontWeight: '800', color: colors.text, textTransform: 'uppercase', opacity: 0.8 }}>{t('common.sell')}</Text>
-                <Text style={{ fontSize: 13, fontWeight: '900', color: colors.text }}>{bmDetails.sell}</Text>
+              <View style={{ width: 1.5, height: 22, backgroundColor: colors.text, opacity: 0.15, marginHorizontal: 2 }} />
+              <View style={{ alignItems: 'center', marginHorizontal: 8, minWidth: 48 }}>
+                <Text style={{ fontSize: 9, fontWeight: '800', color: colors.text, textTransform: 'uppercase', opacity: 0.6 }}>{t('common.sell')}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '900', color: colors.text }}>{bmDetails.sell || bmDetails.sale}</Text>
               </View>
-            </>
-          ) : null}
+            </View>
+          ) : (
+            <View style={{ height: 24, width: 24, opacity: 0.08, justifyContent: 'center', alignItems: 'center' }}>
+              <Ionicons name="business-outline" size={16} color={colors.text} />
+            </View>
+          )}
         </View>
 
         <View style={{ alignItems: 'flex-end', width: '25%', backgroundColor: 'transparent' }}>
@@ -327,10 +305,10 @@ export default function RatesScreen() {
         </View>
       </TouchableOpacity>
     );
-  }, [contextFavorites, baseCurrency, rates, banqueMisrRates, t, colors, isDarkMode, getRateChange, handleToggleFavorite]);
+  }, [contextFavorites, baseCurrency, contextRates, contextBmRates, t, colors, isDarkMode, getRateChange, handleToggleFavorite]);
 
   // تم نقل الشرط المباشر إلى هنا بعد جميع الـ Hooks
-  if (loading && Object.keys(rates).length === 0) {
+  if (contextLoading && Object.keys(contextRates).length === 0) {
     return (
       <NeoBackground>
         <RatesSkeleton />
@@ -351,7 +329,7 @@ export default function RatesScreen() {
         <View>
           <Text style={{ fontSize: 18, fontWeight: '900', color: colors.text }}>{t('rates.live_rates')}</Text>
           <Text style={{ fontSize: 10, fontWeight: '600', color: colors.sectionHeader }}>
-            {t('converter.last_updated', { defaultValue: 'آخر تحديث' })}: {lastUpdated || contextLastUpdated}
+            {t('converter.last_updated', { defaultValue: 'آخر تحديث' })}: {contextLastUpdated}
           </Text>
         </View>
       </View>
@@ -364,7 +342,7 @@ export default function RatesScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.headerCircle, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}
-          onPress={() => fetchRates(true)}
+          onPress={handleRefresh}
           disabled={isRefreshingManual}
         >
           {isRefreshingManual ? <ActivityIndicator size="small" color={colors.accent} /> : <Ionicons name="refresh" size={20} color={colors.text} />}
@@ -386,7 +364,7 @@ export default function RatesScreen() {
           renderItem={renderCurrencyItem}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchRates(true)} tintColor={colors.accent} />}
+          refreshControl={<RefreshControl refreshing={isRefreshingManual} onRefresh={handleRefresh} tintColor={colors.accent} />}
           initialNumToRender={10}
           maxToRenderPerBatch={10}
           windowSize={5}

@@ -7,6 +7,7 @@ export const RatesContext = createContext();
 
 export const RatesProvider = ({ children }) => {
   const [rates, setRates] = useState({});
+  const [banqueMisrRates, setBanqueMisrRates] = useState({});
   const [loadingRates, setLoadingRates] = useState(true);
   const [lastUpdated, setLastUpdated] = useState('');
 
@@ -15,58 +16,76 @@ export const RatesProvider = ({ children }) => {
     return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   };
 
+  // محاولة تحميل الكاش فوراً عند بدء التشغيل لضمان استمرارية العرض
+  useEffect(() => {
+    const loadInitialCache = async () => {
+      try {
+        const cachedRates = await AsyncStorage.getItem(CACHE_KEYS.CURRENCIES);
+        const cachedBm = await AsyncStorage.getItem(CACHE_KEYS.BM_RATES);
+        if (cachedRates) setRates(JSON.parse(cachedRates));
+        if (cachedBm) setBanqueMisrRates(JSON.parse(cachedBm));
+      } catch (e) {
+        console.warn('Failed to load initial cache', e);
+      }
+    };
+    loadInitialCache();
+  }, []);
+
   const fetchGlobalRates = useCallback(async (isManualRefresh = false) => {
     const NOW = Date.now();
-    const THIRTY_MINUTES = CACHE_DURATIONS.RATES_CONTEXT; // 30 دقيقة من cacheKeys
+    const THIRTY_MINUTES = CACHE_DURATIONS.RATES_CONTEXT;
 
-    // 1. التحقق من التخزين المحلي لتنفيذ "الخداع البصري"
-    try {
-      const lastFetchTime = await AsyncStorage.getItem(CACHE_KEYS.CURRENCIES_TIME);
-
-      // إذا كان التحديث يدوياً (سوايب أو زر) ومر أقل من 30 دقيقة
-      if (isManualRefresh && lastFetchTime && (NOW - parseInt(lastFetchTime) < THIRTY_MINUTES)) {
-        console.log('Smart Strategy: Performing optimistic update (Visual only)');
-
-        setLoadingRates(true);
-        // تأخير بسيط لمحاكاة سرعة الاستجابة (UX)
-        await new Promise(resolve => setTimeout(resolve, 800));
-
-        setLastUpdated(getCurrentTime());
-        setLoadingRates(false);
-        return; // الخروج دون طلب API
-      }
-    } catch (e) {
-      console.warn('Storage not available:', e.message);
-    }
-
-    // 2. الطلب الحقيقي للبيانات (يحدث فقط عند أول دخول أو بعد مرور 30 دقيقة)
     try {
       if (isManualRefresh) setLoadingRates(true);
 
-      // دائماً false، لا forceRefresh لمنع الطلبات المباشرة
-      const data = await getCurrenciesData(false);
+      const lastFetchTime = await AsyncStorage.getItem(CACHE_KEYS.CURRENCIES_TIME);
+
+      // استراتيجية ذكية: إذا كان التحديث يدوياً وضمن الـ 30 دقيقة، نستخدم الخداع البصري للحفاظ على الـ API
+      if (isManualRefresh && lastFetchTime && (NOW - parseInt(lastFetchTime) < THIRTY_MINUTES)) {
+        console.log('Smart Strategy: Performing optimistic update');
+
+        // جلب البيانات من الكاش المحلي فقط لضمان استمرارية العرض
+        const data = await getCurrenciesData(false);
+        if (data) {
+          if (data.rates) setRates(data.rates);
+          if (data.banqueMisrRates) setBanqueMisrRates(data.banqueMisrRates);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 800));
+        setLastUpdated(getCurrentTime());
+        setLoadingRates(false);
+        return;
+      }
+
+      // الطلب الحقيقي (يحدث فقط كل 30 دقيقة)
+      const data = await getCurrenciesData(isManualRefresh);
       
-      if (data && data.rates) {
-        setRates(data.rates);
+      if (data) {
+        if (data.rates) setRates(data.rates);
+        // تحديث banqueMisrRates فقط إذا كانت تحتوي على بيانات
+        if (data.banqueMisrRates && Object.keys(data.banqueMisrRates).length > 0) {
+          setBanqueMisrRates(data.banqueMisrRates);
+        }
         setLastUpdated(getCurrentTime());
       }
     } catch (error) {
-      console.error('Error fetching global rates:', error);
+      console.error('Error in fetchGlobalRates:', error);
     } finally {
       setLoadingRates(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchGlobalRates(false); // أول جلب عند فتح التطبيق
+    fetchGlobalRates(false);
   }, [fetchGlobalRates]);
 
   return (
     <RatesContext.Provider value={{
       rates,
+      banqueMisrRates,
       loadingRates,
       lastUpdated,
-      refreshRates: () => fetchGlobalRates(true) // استدعاء التحديث اليدوي
+      refreshRates: () => fetchGlobalRates(true)
     }}>
       {children}
     </RatesContext.Provider>

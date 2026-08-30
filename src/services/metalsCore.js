@@ -16,21 +16,23 @@ export async function fetchRawMetalsApiData() {
     const payload = response.data?.data || response.data;
 
     if (payload) {
-      const metals = payload.metals || {};
-      const calculatedRates = payload.calculatedRates || payload.currencies?.rates || {};
+      const metals = payload.metals || payload.data?.metals || {};
+      const calculatedRates = payload.calculatedRates || payload.currencies?.rates || payload.data?.currencies?.rates || {};
 
-      // بناء بيانات الذهب تلقائياً من calculatedRates لمنع رجوع null وبالتالي منع التحذير
-      let goldData = metals.goldData;
+      // بناء بيانات الذهب من الهياكل المختلفة الممكنة
+      let goldData = metals.goldData || metals.gold || payload.goldData;
+
+      // منطق ملء البيانات إذا كانت ناقصة (Auto-recovery) من calculatedRates
       if (!goldData && (calculatedRates.XAU_24 || calculatedRates.XAU_21)) {
         goldData = {
           price_gram_24k: calculatedRates.XAU_24,
           price_gram_21k: calculatedRates.XAU_21,
           price_gram_18k: calculatedRates.XAU_18,
-          price_ounce: calculatedRates.XAU_24 ? calculatedRates.XAU_24 * 31.1035 : 2600
+          price_ounce: calculatedRates.XAU_24 ? calculatedRates.XAU_24 * 31.1035 : null
         };
       }
 
-      let silverData = metals.silverData;
+      let silverData = metals.silverData || metals.silver || payload.silverData;
       if (!silverData && calculatedRates.XAG_GRAM) {
         silverData = {
           price_gram: calculatedRates.XAG_GRAM,

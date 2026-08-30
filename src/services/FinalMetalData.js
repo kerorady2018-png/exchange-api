@@ -13,13 +13,33 @@ const METALS_TTL = 15 * 60 * 1000; // 15 minutes TTL for metals data optimizatio
 function processMetalsData(rawApiData, currenciesData = {}, baseCurrency = 'EGP', forexRates = {}) {
   const { goldData, silverData, globalRates: apiGlobalRates } = rawApiData || {};
 
-  // 1. استخراج الأسعار العالمية للأونصة (بالدولار الأمريكي)
-  const goldOunceUSD = Number(goldData?.data?.price || goldData?.price || 0);
-  const silverOunceUSD = Number(silverData?.data?.price || silverData?.price || 0);
+  // 1. استخراج الأسعار العالمية للأونصة (بالدولار الأمريكي) - دعم شامل للهيكلة الجديدة والقديمة
+  let goldOunceUSD = Number(
+    goldData?.price_ounce ||
+    goldData?.data?.price ||
+    goldData?.price ||
+    0
+  );
 
-  if (!goldOunceUSD || isNaN(goldOunceUSD)) {
-    throw new Error('Gold API Data Unavailable');
+  // منطق احتياطي: إذا لم يتوفر سعر الأونصة ولكن توفر سعر الجرام 24
+  if (!goldOunceUSD && goldData?.price_gram_24k) {
+    goldOunceUSD = Number(goldData.price_gram_24k) * 31.1034768;
   }
+
+  let silverOunceUSD = Number(
+    silverData?.price_ounce ||
+    silverData?.data?.price ||
+    silverData?.price ||
+    0
+  );
+
+  if (!silverOunceUSD && silverData?.price_gram) {
+    silverOunceUSD = Number(silverData.price_gram) * 31.1034768;
+  }
+
+  // إذا ظلت الأسعار 0، نستخدم null لضمان عدم عرض أرقام مضللة
+  if (!goldOunceUSD || isNaN(goldOunceUSD)) goldOunceUSD = null;
+  if (!silverOunceUSD || isNaN(silverOunceUSD)) silverOunceUSD = null;
 
   // 2. دمج الأسعار مع إعطاء الأولوية للأسعار الموحدة (Blended) لضمان التطابق مع شاشة العملات
   const globalRates = {
@@ -29,31 +49,31 @@ function processMetalsData(rawApiData, currenciesData = {}, baseCurrency = 'EGP'
   };
 
   // 3. تحديد "دولار البنك" (Official Bank Rate) - المرجعية الأساسية
-  const officialBankRate = Number(globalRates['EGP'] || globalRates['egp'] || 50.15);
+  const officialBankRate = Number(globalRates['EGP'] || globalRates['egp'] || 0);
 
   // 4. تحديد "دولار الصاغة" (Sagha Market Rate)
   // تطبيقات الصاغة (iSagha, DE) تستخدم هامش تحوط (Hedge Margin) يتراوح بين 1.0034 و 1.0038
   const goldMarketMultiplier = 1.0034;
-  const shopDollarRate = officialBankRate * goldMarketMultiplier;
+  const shopDollarRate = officialBankRate ? officialBankRate * goldMarketMultiplier : 0;
 
   // 5. حساب السعر للعملة المختارة (Base Currency)
   // إذا كانت العملة هي الجنيه، نستخدم دولار الصاغة للجرامات ودولار البنك للأونصة (كما هو متعارف عليه محلياً)
-  const currentCurrencyRate = Number(globalRates[baseCurrency] || 1);
+  const currentCurrencyRate = Number(globalRates[baseCurrency] || (baseCurrency === 'USD' ? 1 : 0));
 
   // حساب الأونصة (تتبع السعر الرسمي للبنك عالمياً)
-  const goldOunceInBase = goldOunceUSD * currentCurrencyRate;
+  const goldOunceInBase = (goldOunceUSD && currentCurrencyRate) ? goldOunceUSD * currentCurrencyRate : 0;
 
   // حساب الجرامات (تتبع سعر السوق/الصاغة إذا كانت العملة EGP)
   const effectiveMarketRate = (baseCurrency === 'EGP') ? shopDollarRate : currentCurrencyRate;
-  const gram24Price = (goldOunceUSD / 31.1034768) * effectiveMarketRate;
-  const gram21Price = gram24Price * (21 / 24);
+  const gram24Price = (goldOunceUSD && effectiveMarketRate) ? (goldOunceUSD / 31.1034768) * effectiveMarketRate : 0;
+  const gram21Price = gram24Price ? gram24Price * (21 / 24) : 0;
 
-  const silverGramPrice = (silverOunceUSD / 31.1034768) * effectiveMarketRate;
+  const silverGramPrice = (silverOunceUSD && effectiveMarketRate) ? (silverOunceUSD / 31.1034768) * effectiveMarketRate : 0;
 
   // 6. حساب الفجوة السعرية (Price Gap) بالجنيه المصري دائماً كمؤشر للسوق
-  const global24KInEGP = (goldOunceUSD / 31.1034768) * officialBankRate;
-  const local24KInEGP = (goldOunceUSD / 31.1034768) * shopDollarRate;
-  const priceGapInEGP = local24KInEGP - global24KInEGP;
+  const global24KInEGP = (goldOunceUSD && officialBankRate) ? (goldOunceUSD / 31.1034768) * officialBankRate : 0;
+  const local24KInEGP = (goldOunceUSD && shopDollarRate) ? (goldOunceUSD / 31.1034768) * shopDollarRate : 0;
+  const priceGapInEGP = (local24KInEGP && global24KInEGP) ? local24KInEGP - global24KInEGP : 0;
 
   return {
     'XAU_OUNCE': {
