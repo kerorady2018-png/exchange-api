@@ -166,8 +166,27 @@ export default function RatesScreen() {
 
   const getRateChange = useCallback((item, currentRate) => {
     const prevRate = previousRates[item] || currentRate;
+    
+    // حماية ضد قيم غير صحيحة
+    if (!prevRate || !currentRate || prevRate === 0 || isNaN(prevRate) || isNaN(currentRate)) {
+      return {
+        percentFormatted: '0.00',
+        isUp: false,
+        isEqual: true
+      };
+    }
+    
     const diff = currentRate - prevRate;
-    const percent = prevRate > 0 ? (diff / prevRate) * 100 : 0;
+    const percent = (diff / prevRate) * 100;
+    
+    // حماية إضافية ضد قيم غير صحيحة
+    if (!isFinite(percent) || isNaN(percent)) {
+      return {
+        percentFormatted: '0.00',
+        isUp: false,
+        isEqual: true
+      };
+    }
     
     // تنسيق النسبة المئوية لرقم أو رقمين فقط (مبسط)
     let percentFormatted;
