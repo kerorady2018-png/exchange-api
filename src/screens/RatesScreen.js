@@ -169,14 +169,12 @@ export default function RatesScreen() {
     const diff = currentRate - prevRate;
     const percent = prevRate > 0 ? (diff / prevRate) * 100 : 0;
     
-    // تنسيق النسبة المئوية لرقم أو رقمين فقط
+    // تنسيق النسبة المئوية لرقم أو رقمين فقط (مبسط)
     let percentFormatted;
-    if (Math.abs(percent) >= 100) {
-      percentFormatted = Math.abs(percent).toFixed(0); // للأرقام الكبيرة (123%)
-    } else if (Math.abs(percent) >= 10) {
-      percentFormatted = Math.abs(percent).toFixed(1); // للأرقام المتوسطة (12.3%)
+    if (Math.abs(percent) >= 1) {
+      percentFormatted = Math.abs(percent).toFixed(0); // للأرقام >= 1% (123%)
     } else {
-      percentFormatted = Math.abs(percent).toFixed(2); // للأرقام الصغيرة (1.23%)
+      percentFormatted = Math.abs(percent).toFixed(2); // للأرقام < 1% (0.12%)
     }
     
     return {
