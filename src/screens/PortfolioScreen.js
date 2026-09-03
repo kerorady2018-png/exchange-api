@@ -628,14 +628,14 @@ export default function PortfolioScreen() {
     if (hideValues) return '••••';
     return isNaN(num) ? '0.00' : Number(num).toLocaleString('en-US', {
       minimumFractionDigits: 2,
-      maximumFractionDigits: 4,
+      maximumFractionDigits: 2,
     });
   };
 
   const formatAlwaysVisibleNumber = (num) => {
     return isNaN(num) ? '0.00' : Number(num).toLocaleString('en-US', {
       minimumFractionDigits: 2,
-      maximumFractionDigits: 4,
+      maximumFractionDigits: 2,
     });
   };
 

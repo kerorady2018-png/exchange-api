@@ -165,10 +165,19 @@ export default function RatesScreen() {
   }, [contextRates, contextFavorites, baseCurrency, contextBmRates]);
 
   const getRateChange = useCallback((item, currentRate) => {
-    const prevRate = previousRates[item] || currentRate;
+    // إذا لم يكن هناك سعر سابق، لا تظهر نسبة
+    if (!previousRates[item] || previousRates[item] === 0 || isNaN(previousRates[item])) {
+      return {
+        percentFormatted: '0.00',
+        isUp: false,
+        isEqual: true
+      };
+    }
+    
+    const prevRate = previousRates[item];
     
     // حماية ضد قيم غير صحيحة
-    if (!prevRate || !currentRate || prevRate === 0 || isNaN(prevRate) || isNaN(currentRate)) {
+    if (!currentRate || currentRate === 0 || isNaN(currentRate)) {
       return {
         percentFormatted: '0.00',
         isUp: false,
@@ -188,12 +197,23 @@ export default function RatesScreen() {
       };
     }
     
-    // تنسيق النسبة المئوية لرقم أو رقمين فقط (مبسط)
+    // تنسيق النسبة المئوية مع تبسيط الأرقام الكبيرة
     let percentFormatted;
-    if (Math.abs(percent) >= 1) {
-      percentFormatted = Math.abs(percent).toFixed(0); // للأرقام >= 1% (123%)
+    const absPercent = Math.abs(percent);
+    
+    if (absPercent >= 1000) {
+      // للأرقام الكبيرة جداً: 5009% → 5K%
+      const kValue = (absPercent / 1000).toFixed(1);
+      percentFormatted = `${kValue}K`;
+    } else if (absPercent >= 100) {
+      // للأرقام الكبيرة: 500% → 500%
+      percentFormatted = absPercent.toFixed(0);
+    } else if (absPercent >= 1) {
+      // للأرقام المتوسطة: 12% → 12%
+      percentFormatted = absPercent.toFixed(0);
     } else {
-      percentFormatted = Math.abs(percent).toFixed(2); // للأرقام < 1% (0.12%)
+      // للأرقام الصغيرة: 0.12% → 0.12%
+      percentFormatted = absPercent.toFixed(2);
     }
     
     return {
