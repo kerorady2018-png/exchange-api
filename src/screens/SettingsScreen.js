@@ -151,10 +151,13 @@ const SettingsScreen = () => {
         target: portfolioTarget || null
       }, true);
 
-      if (response.success) {
+      if (response.success && !response.offline) {
         setIsDataSaved(true);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         alert(t('common.data_saved'));
+      } else if (response.offline) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        alert('تم حفظ البيانات محلياً فقط - فشل الاتصال بالسيرفر');
       } else if (response.rate_limited) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         Alert.alert(
@@ -165,7 +168,8 @@ const SettingsScreen = () => {
           })
         );
       } else {
-        alert(t('common.save_error'));
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        alert('فشل حفظ البيانات: ' + (response.error || 'خطأ غير معروف'));
       }
     } finally {
       setIsProcessing(false);

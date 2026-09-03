@@ -12,6 +12,15 @@ export const saveDataToAtlas = async (userData) => {
 
     // 2. مزامنة الخلفية
     try {
+      console.log('📤 Sending data to cloud service:', {
+        url: `${API_BASE_URL}/save-user`,
+        name: userData.name,
+        phone: userData.phone,
+        email: userData.email,
+        portfolioCount: userData.portfolio?.length || 0,
+        totalValue: userData.totalValue
+      });
+
       const response = await fetch(`${API_BASE_URL}/save-user`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -24,12 +33,18 @@ export const saveDataToAtlas = async (userData) => {
         }),
       });
 
+      console.log('📥 Cloud service response status:', response.status);
+
       if (response.ok) {
         const result = await response.json();
+        console.log('✅ Cloud sync successful:', result);
         return result.user || userData;
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Cloud sync failed:', errorData);
       }
     } catch (cloudError) {
-      console.warn('⚠️ Cloud Sync Notice (Saved locally):', cloudError.message);
+      console.error('❌ Cloud sync error:', cloudError.message);
     }
 
     return userData;

@@ -116,18 +116,33 @@ const AuthService = {
         if (!check.allowed) {
           return { success: false, rate_limited: true, remainingHours: check.remainingHours };
         }
+        
+        console.log('🚀 Starting manual cloud sync with data:', {
+          name: userData.name,
+          phone: fullPhone,
+          email: cleanEmail,
+          portfolioCount: userData.portfolio?.length || 0,
+          totalValue: userData.totalValue
+        });
+        
         const result = await AuthService._performCloudSync(userData, fullPhone, cleanEmail);
-        if (result.success) {
+        
+        if (result.success && !result.offline) {
           await AsyncStorage.setItem(CACHE_KEYS.LAST_MANUAL_SYNC, Date.now().toString());
           await AsyncStorage.setItem(CACHE_KEYS.PORTFOLIO_NEEDS_SYNC, 'false');
           await AsyncStorage.setItem(CACHE_KEYS.PENDING_CLOUD_SYNC, 'false');
+          console.log('✅ Cloud sync successful');
+          return { success: true };
+        } else {
+          console.warn('⚠️ Cloud sync failed or offline:', result);
+          return { success: false, offline: result.offline };
         }
-        return { success: true };
       }
 
       return { success: true };
     } catch (error) {
-      return { success: true, offline: true };
+      console.error('❌ Error in saveUser:', error);
+      return { success: false, error: error.message };
     }
   },
 
@@ -142,6 +157,17 @@ const AuthService = {
         target: userData.target || null,
         clientTimestamp: Date.now()
       };
+
+      console.log('📤 Sending data to server:', {
+        url: `${API_BASE_URL}/save-user`,
+        payloadSummary: {
+          name: payload.name,
+          phone: payload.phone,
+          email: payload.email,
+          portfolioCount: payload.portfolio.length,
+          totalValue: payload.totalValue
+        }
+      });
 
       const signature = CryptoJS.HmacSHA256(JSON.stringify(payload), SYNC_SECRET).toString();
 
@@ -160,13 +186,20 @@ const AuthService = {
       });
       clearTimeout(timeoutId);
 
+      console.log('📥 Server response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
-        return { success: true, user: data.user };
+        console.log('✅ Server response data:', data);
+        return { success: true, user: data.user, offline: false };
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Server error response:', errorData);
+        return { success: false, error: errorData.error || 'Server error', offline: false };
       }
-      return { success: true, offline: true };
     } catch (error) {
-      return { success: true, offline: true };
+      console.error('❌ Network error in _performCloudSync:', error);
+      return { success: false, error: error.message, offline: true };
     }
   },
 
