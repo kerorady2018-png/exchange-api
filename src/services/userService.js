@@ -2,7 +2,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LOCAL_STORAGE_KEY = '@user_portfolio_data';
-const API_BASE_URL = 'https://exchange-api-sepia.vercel.app';
+const API_BASE_URL = 'https://exchange-api-sepia.vercel.app/api';
 
 export const saveDataToAtlas = async (userData) => {
   try {
@@ -12,7 +12,7 @@ export const saveDataToAtlas = async (userData) => {
 
     // 2. مزامنة الخلفية
     try {
-      const response = await fetch(`${API_BASE_URL}/api/save-user`, {
+      const response = await fetch(`${API_BASE_URL}/save-user`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -46,7 +46,7 @@ export const restoreDataFromAtlas = async (identifier) => {
       ? { email: identifier.trim().toLowerCase() } 
       : { phone: identifier.trim() };
 
-    const response = await fetch(`${API_BASE_URL}/api/get-user`, {
+    const response = await fetch(`${API_BASE_URL}/get-user`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody),

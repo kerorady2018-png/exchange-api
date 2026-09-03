@@ -89,7 +89,7 @@ export async function syncUserDataTask() {
     const cleanEmail = savedEmail ? savedEmail.toLowerCase() : undefined;
     const portfolio = savedAssets ? JSON.parse(savedAssets) : [];
 
-    const response = await axios.post('https://exchange-api.vercel.app/api/save-user', {
+    const response = await axios.post('https://exchange-api-sepia.vercel.app/api/save-user', {
       name: savedName,
       phone: fullPhoneNumber,
       email: cleanEmail,
