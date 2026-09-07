@@ -132,10 +132,17 @@ export async function getMetalsData(baseCurrency = 'EGP', forexRates = {}, force
   const lastFetchStr = await AsyncStorage.getItem(METALS_TIME_KEY);
   const lastFetch = lastFetchStr ? parseInt(lastFetchStr, 10) : 0;
 
-  // 1. نظام الـ Cache الصارم للمعادن (15 دقيقة)
+  // 1. نظام الـ Cache الصارم للمعادن (15 دقيقة) - لا تستخدم كاش فارغ
   if (!forceRefresh && lastFetch > 0 && (now - lastFetch < METALS_TTL)) {
     const cached = await AsyncStorage.getItem(METALS_CACHE_KEY);
-    if (cached) return JSON.parse(cached);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.XAU_24 && parsed.XAU_24.price > 0) {
+          return parsed;
+        }
+      } catch (e) { /* continue to fetch */ }
+    }
   }
 
   try {
@@ -161,16 +168,16 @@ export async function getMetalsData(baseCurrency = 'EGP', forexRates = {}, force
   } catch (error) {
     console.warn('Metals Fetch failed, entering Perpetual Cache Fallback:', error.message);
 
-    // 3. Fallback المطلق: إذا فشل الاتصال، استخرج آخر بيانات معادن ناجحة
+    // 3. Fallback: إذا فشل الاتصال، استخرج آخر بيانات معادن ناجحة
     const cached = await AsyncStorage.getItem(METALS_CACHE_KEY);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        return { ...parsed, _isFallback: true };
-      } catch (e) {
-        return {};
-      }
+        if (parsed && parsed.XAU_24 && parsed.XAU_24.price > 0) {
+          return { ...parsed, _isFallback: true };
+        }
+      } catch (e) { /* ignore */ }
     }
-    return {};
+    return { _isFallback: true, _offlineMode: true };
   }
 }

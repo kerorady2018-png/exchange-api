@@ -6,8 +6,7 @@ export async function fetchCurrenciesFromApi() {
   try {
     // قراءة من endpoint الملف الثابت api/static-data فقط
     const response = await withRetry(() => apiClient.get('/api/static-data', {
-      timeout: 8000, // تقليل من 15 ثانية إلى 8 ثواني للسرعة
-      headers: { 'Cache-Control': 'public, max-age=60' } // 60 ثانية
+      timeout: 10000 // 10 ثوانٍ للسماح بشبكات الجوال البطيئة
     }));
 
     const payload = response.data?.data || response.data;

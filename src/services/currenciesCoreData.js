@@ -33,16 +33,25 @@ export async function getCurrenciesData(forceRefresh = false) {
 
   let currentBm = cachedBm ? JSON.parse(cachedBm) : INJECTED_BM_RATES;
 
-  // إذا لم يكن هناك طلب إجباري ومرت أقل من 5 دقائق، استخدم الكاش للسرعة
+  // التحقق من صلاحية الكاش (يجب ألا يكون فارغاً)
+  let validCachedRates = null;
+  if (cachedRates) {
+    try {
+      const parsed = JSON.parse(cachedRates);
+      if (parsed && Object.keys(parsed).length > 0) {
+        validCachedRates = parsed;
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // استخدم الكاش فقط إذا كان صالحاً وضمن فترة التهدئة
   if (!forceRefresh && timeSinceStaticRequest < CACHE_DURATIONS.STATIC_FILE_READ_COOLDOWN) {
-    if (cachedRates) {
-      try {
-        return {
-          rates: JSON.parse(cachedRates),
-          banqueMisrRates: (currentBm && Object.keys(currentBm).length > 0) ? currentBm : INJECTED_BM_RATES,
-          _fromCache: true
-        };
-      } catch (e) { /* fallback */ }
+    if (validCachedRates) {
+      return {
+        rates: validCachedRates,
+        banqueMisrRates: (currentBm && Object.keys(currentBm).length > 0) ? currentBm : INJECTED_BM_RATES,
+        _fromCache: true
+      };
     }
   }
 
@@ -72,7 +81,7 @@ export async function getCurrenciesData(forceRefresh = false) {
   } catch (error) {
     console.warn('API Fetch failed or empty, using fallback cache and injected data');
     return {
-      rates: cachedRates ? JSON.parse(cachedRates) : {},
+      rates: validCachedRates || {},
       banqueMisrRates: (currentBm && Object.keys(currentBm).length > 0) ? currentBm : INJECTED_BM_RATES,
       _isFallback: true,
       _offlineMode: true

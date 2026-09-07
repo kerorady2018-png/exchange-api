@@ -3,7 +3,7 @@
  * تساعد في التعامل مع انقطاعات الإنترنت المؤقتة أو ضغط السيرفر بشكل احترافي.
  * تم تحسينها لتقليل البطء: محاولة واحدة فقط للسرعة
  */
-export const withRetry = async (fn, retries = 1, initialDelay = 500) => {
+export const withRetry = async (fn, retries = 3, initialDelay = 1000) => {
   let lastError;
 
   for (let i = 0; i < retries; i++) {
@@ -17,12 +17,15 @@ export const withRetry = async (fn, retries = 1, initialDelay = 500) => {
         throw error;
       }
 
-      // لا نعيد المحاولة في حالة Network Error للسرعة
-      if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      // نعيد المحاولة في حالة Network Error لأن الشبكة قد لا تكون جاهزة
+      const isNetworkError = error.code === 'ERR_NETWORK' || error.message === 'Network Error';
+      const isLastAttempt = i >= retries - 1;
+
+      if (isLastAttempt) {
         throw error;
       }
 
-      // حساب التأخير بشكل أسّي: 0.5s -> 1s (أسرع)
+      // حساب التأخير بشكل أسّي: 1s -> 2s -> 4s
       const delay = initialDelay * Math.pow(2, i);
       console.log(`Retry attempt ${i + 1} after ${delay}ms due to: ${error.message}`);
 
