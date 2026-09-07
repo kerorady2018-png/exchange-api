@@ -8,6 +8,7 @@ import { useTheme } from '../hooks/useTheme';
 import { SettingsContext } from '../context/SettingsContext';
 import { BaseCurrencyContext } from '../context/BaseCurrencyContext';
 import AuthService from '../services/authService';
+import { requestNotificationPermissions, saveNotificationSettings, getDefaultNotificationSettings } from '../services/notificationService';
 import { currencyInfo } from '../constants/currencyData';
 
 const { width, height } = Dimensions.get('window');
@@ -90,6 +91,14 @@ const OnboardingScreen = ({ onFinish }) => {
       description: t('onboarding.slide3_desc', { defaultValue: 'سجل لتفعيل ميزة المزامنة السحابية وحفظ محفظتك الاستثمارية بأمان' }),
       color: '#FF9500',
       type: 'register'
+    },
+    {
+      id: '4',
+      icon: 'notifications',
+      title: t('onboarding.slide4_title', { defaultValue: 'تفعيل الإشعارات' }),
+      description: t('onboarding.slide4_desc', { defaultValue: 'احصل على تنبيهات فورية لتغيرات الأسعار وأداء محفظتك الاستثمارية' }),
+      color: '#34C759',
+      type: 'notifications'
     }
   ], [t]);
 
@@ -147,6 +156,47 @@ const OnboardingScreen = ({ onFinish }) => {
       handleFinish(false);
     }
   };
+
+  const handleEnableNotifications = useCallback(async () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const granted = await requestNotificationPermissions();
+
+    const defaultSettings = getDefaultNotificationSettings();
+    const newSettings = {
+      ...defaultSettings,
+      enabled: true,
+      priceAlertsEnabled: true,
+      portfolioAlertsEnabled: true,
+      dailySummaryEnabled: true,
+    };
+
+    await saveNotificationSettings(newSettings);
+
+    if (granted) {
+      Alert.alert(
+        language === 'ar' ? 'تم التفعيل' : 'Enabled',
+        language === 'ar'
+          ? 'سيتم إرسال تنبيهات مهمة فقط لتغيرات الأسعار وأداء محفظتك'
+          : 'You will receive important alerts for price changes and portfolio performance',
+        [{ text: language === 'ar' ? 'حسناً' : 'OK', onPress: handleNext }]
+      );
+    } else {
+      Alert.alert(
+        language === 'ar' ? 'الإذن مطلوب' : 'Permission Required',
+        language === 'ar'
+          ? 'يمكنك تفعيل الإشعارات لاحقاً من إعدادات الجهاز'
+          : 'You can enable notifications later from device settings',
+        [{ text: language === 'ar' ? 'حسناً' : 'OK', onPress: handleNext }]
+      );
+    }
+  }, [language, handleNext]);
+
+  const handleSkipNotifications = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const defaultSettings = getDefaultNotificationSettings();
+    await saveNotificationSettings({ ...defaultSettings, enabled: false });
+    handleNext();
+  }, [handleNext]);
 
   const handleSkip = () => {
     if (currentIndex === 0) {
@@ -249,6 +299,62 @@ const OnboardingScreen = ({ onFinish }) => {
       );
     }
 
+    if (item.type === 'notifications') {
+      return (
+        <View style={styles.slide}>
+          <View style={[styles.iconContainerSmall, { backgroundColor: '#E8F8E8', marginBottom: 20 }]}>
+            <Ionicons name={item.icon} size={40} color={item.color} />
+          </View>
+          <Text style={[styles.title, { color: colors.text }]}>{item.title}</Text>
+          <Text style={[styles.description, { color: colors.sectionHeader, textAlign: 'center', paddingHorizontal: 30, marginBottom: 30 }]}>
+            {item.description}
+          </Text>
+
+          <View style={styles.notificationPreview}>
+            <View style={[styles.previewCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+              <View style={styles.previewHeader}>
+                <Ionicons name="notifications" size={22} color="#34C759" />
+                <Text style={[styles.previewTitle, { color: colors.text }]}>{language === 'ar' ? 'تنبيه سعر' : 'Price Alert'}</Text>
+              </View>
+              <Text style={[styles.previewBody, { color: colors.sectionHeader }]}>
+                {language === 'ar' ? 'الدولار ارتفع بنسبة 0.75%' : 'USD increased by 0.75%'}
+              </Text>
+            </View>
+            <View style={[styles.previewCard, { backgroundColor: colors.cardBg, borderColor: colors.border, marginTop: 12 }]}>
+              <View style={styles.previewHeader}>
+                <Ionicons name="trending-up" size={22} color="#387c9f" />
+                <Text style={[styles.previewTitle, { color: colors.text }]}>{language === 'ar' ? 'أداء المحفظة' : 'Portfolio Alert'}</Text>
+              </View>
+              <Text style={[styles.previewBody, { color: colors.sectionHeader }]}>
+                {language === 'ar' ? 'محفظتك حققت ربح 5%' : 'Your portfolio gained 5%'}
+              </Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.enableButton, { backgroundColor: '#34C759' }]}
+            onPress={handleEnableNotifications}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="notifications" size={20} color="#FFF" style={{ marginRight: 8 }} />
+            <Text style={styles.enableButtonText}>
+              {language === 'ar' ? 'تفعيل الإشعارات' : 'Enable Notifications'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.skipButton, { marginTop: 12 }]}
+            onPress={handleSkipNotifications}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.skipText, { color: colors.sectionHeader }]}>
+              {language === 'ar' ? 'لاحقاً' : 'Maybe Later'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     if (item.type === 'register') {
       return (
         <KeyboardAvoidingView
@@ -317,7 +423,7 @@ const OnboardingScreen = ({ onFinish }) => {
         </KeyboardAvoidingView>
       );
     }
-  }, [colors, t, name, phone, email, selectedCountry, language, languagesList, currenciesList, renderLanguageItem, renderCurrencyItem]);
+  }, [colors, t, name, phone, email, selectedCountry, language, languagesList, currenciesList, renderLanguageItem, renderCurrencyItem, handleEnableNotifications, handleSkipNotifications]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -350,23 +456,25 @@ const OnboardingScreen = ({ onFinish }) => {
         keyExtractor={(item) => item.id}
       />
 
-      <View style={[styles.footer, { backgroundColor: colors.background }]}>
-        <TouchableOpacity
-          style={[styles.nextBtn, { width: '100%' }]}
-          onPress={handleNext}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <Text style={styles.nextBtnText}>
-              {currentIndex === slides.length - 1
-                ? (name.trim() ? t('common.done') : t('onboarding.skip_register', { defaultValue: 'الدخول بدون تسجيل' }))
-                : t('common.next')}
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
+      {currentIndex !== 3 && (
+        <View style={[styles.footer, { backgroundColor: colors.background }]}>
+          <TouchableOpacity
+            style={[styles.nextBtn, { width: '100%' }]}
+            onPress={handleNext}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.nextBtnText}>
+                {currentIndex === slides.length - 1
+                  ? (name.trim() ? t('common.done') : t('onboarding.skip_register', { defaultValue: 'الدخول بدون تسجيل' }))
+                  : t('common.next')}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* WARNING MODAL FOR SKIPPING REGISTRATION */}
       <Modal visible={showSkipWarning} animationType="slide" transparent={false}>
@@ -479,7 +587,18 @@ const styles = StyleSheet.create({
   countryItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 18, borderBottomWidth: 0.5 },
   countryItemFlag: { fontSize: 24, marginRight: 15 },
   countryItemName: { flex: 1, fontSize: 17 },
-  countryItemValue: { fontSize: 15, fontWeight: '600' }
+  countryItemValue: { fontSize: 15, fontWeight: '600' },
+
+  // NOTIFICATION SLIDE STYLES
+  notificationPreview: { width: '100%', paddingHorizontal: 20, marginBottom: 20 },
+  previewCard: { flexDirection: 'column', borderRadius: 18, borderWidth: 1.5, padding: 15 },
+  previewHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  previewTitle: { fontSize: 15, fontWeight: '700', marginLeft: 10 },
+  previewBody: { fontSize: 13, lineHeight: 18, paddingLeft: 32 },
+  enableButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', width: '85%', height: 55, borderRadius: 18, elevation: 3 },
+  enableButtonText: { color: '#FFF', fontSize: 17, fontWeight: 'bold' },
+  skipButton: { paddingVertical: 10, paddingHorizontal: 20 },
+  skipText: { fontSize: 14, fontWeight: '600' }
 });
 
 export default OnboardingScreen;
