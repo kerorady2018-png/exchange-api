@@ -31,6 +31,7 @@ const OnboardingScreen = ({ onFinish }) => {
   const [selectedCountry, setSelectedCountry] = useState({ nameAr: 'مصر', nameEn: 'Egypt', flag: '🇪🇬', value: '+20' });
   const [isCountryModalVisible, setIsCountryModalVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [restoreStatus, setRestoreStatus] = useState('');
   const [showSkipWarning, setShowSkipWarning] = useState(false);
 
   const languagesList = useMemo(() => [
@@ -130,15 +131,16 @@ const OnboardingScreen = ({ onFinish }) => {
         const cleanEmail = email.trim().toLowerCase();
 
         // محاولة استرداد بيانات المستخدم السابقة من السحابة
+        setRestoreStatus(language === 'ar' ? 'جاري البحث عن بياناتك السابقة...' : 'Looking for your saved data...');
         try {
           const existingUser = await AuthService.getUser(cleanPhone, cleanEmail, selectedCountry.value);
           if (existingUser.success && existingUser.user) {
-            console.log('✅ Restoring user data from cloud');
+            setRestoreStatus(language === 'ar' ? 'تم العثور على بياناتك، جاري استرداد المحفظة...' : 'Found your data, restoring portfolio...');
             await AuthService.applyRestoredData(existingUser.user, selectedCountry.value);
             await AsyncStorage.setItem(CACHE_KEYS.IS_DATA_SAVED, 'true');
           } else {
             // مستخدم جديد - احفظ البيانات محلياً
-            console.log('ℹ️ New user, saving locally');
+            setRestoreStatus(language === 'ar' ? 'لم تُوجد بيانات سابقة، جاري إنشاء حساب جديد...' : 'No previous data found, creating new account...');
             await AuthService.saveUser({
               name: name.trim(),
               phone: phone.trim(),
@@ -150,6 +152,7 @@ const OnboardingScreen = ({ onFinish }) => {
           }
         } catch (restoreError) {
           console.warn('Restore error during onboarding:', restoreError.message);
+          setRestoreStatus(language === 'ar' ? 'تعذر الاتصال بالسحابة، جاري الحفظ محلياً...' : 'Could not connect to cloud, saving locally...');
           await AuthService.saveUser({
             name: name.trim(),
             phone: phone.trim(),
@@ -384,19 +387,19 @@ const OnboardingScreen = ({ onFinish }) => {
     if (item.type === 'register') {
       return (
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior="padding"
           style={styles.slide}
         >
-          <View style={[styles.iconContainerSmall, { backgroundColor: '#FFF3E0' }]}>
-            <Ionicons name={item.icon} size={40} color={item.color} />
+          <View style={[styles.iconContainerSmall, { backgroundColor: '#FFF3E0', marginBottom: 10 }]}>
+            <Ionicons name={item.icon} size={32} color={item.color} />
           </View>
 
           <View style={styles.registrationFormTop}>
-            <Text style={[styles.titleSmall, { color: colors.text }]}>{item.title}</Text>
+            <Text style={[styles.titleSmall, { color: colors.text, marginBottom: 8 }]}>{item.title}</Text>
 
             <View style={styles.inputsContainer}>
               <View style={[styles.inputWrapper, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-                <Ionicons name="person-outline" size={20} color={colors.sectionHeader} style={styles.inputIcon} />
+                <Ionicons name="person-outline" size={18} color={colors.sectionHeader} style={styles.inputIcon} />
                 <TextInput
                   style={[styles.inputField, { color: colors.text }]}
                   placeholder={t('common.name')}
@@ -429,7 +432,7 @@ const OnboardingScreen = ({ onFinish }) => {
               </View>
 
               <View style={[styles.inputWrapper, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-                <Ionicons name="mail-outline" size={20} color={colors.sectionHeader} style={styles.inputIcon} />
+                <Ionicons name="mail-outline" size={18} color={colors.sectionHeader} style={styles.inputIcon} />
                 <TextInput
                   style={[styles.inputField, { color: colors.text }]}
                   placeholder={t('common.email')}
@@ -442,6 +445,13 @@ const OnboardingScreen = ({ onFinish }) => {
               </View>
             </View>
 
+            {restoreStatus ? (
+              <View style={styles.restoreStatusBox}>
+                <ActivityIndicator size="small" color="#387c9f" style={{ marginRight: 8 }} />
+                <Text style={[styles.restoreStatusText, { color: colors.text }]}>{restoreStatus}</Text>
+              </View>
+            ) : null}
+
             <Text style={[styles.descriptionSmall, { color: colors.sectionHeader }]}>
               {item.description}
             </Text>
@@ -449,7 +459,7 @@ const OnboardingScreen = ({ onFinish }) => {
         </KeyboardAvoidingView>
       );
     }
-  }, [colors, t, name, phone, email, selectedCountry, language, languagesList, currenciesList, renderLanguageItem, renderCurrencyItem, handleEnableNotifications, handleSkipNotifications]);
+  }, [colors, t, name, phone, email, selectedCountry, language, languagesList, currenciesList, renderLanguageItem, renderCurrencyItem, handleEnableNotifications, handleSkipNotifications, restoreStatus]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -464,6 +474,15 @@ const OnboardingScreen = ({ onFinish }) => {
           <Text style={styles.skipTextWhite}>{t('onboarding.skip', { defaultValue: 'تخطي' })}</Text>
         </TouchableOpacity>
       </View>
+
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#387c9f" />
+          {restoreStatus ? (
+            <Text style={styles.loadingOverlayText}>{restoreStatus}</Text>
+          ) : null}
+        </View>
+      )}
 
       <FlatList
         ref={flatListRef}
@@ -573,18 +592,20 @@ const styles = StyleSheet.create({
   slide: { width, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30 },
   iconContainerSmall: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center' },
   title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 },
-  titleSmall: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginBottom: 15 },
-  descriptionSmall: { fontSize: 13, textAlign: 'center', lineHeight: 18, marginTop: 15 },
-  registrationFormTop: { width: '100%', paddingTop: 10 },
+  titleSmall: { fontSize: 18, fontWeight: 'bold', textAlign: 'center', marginBottom: 15 },
+  descriptionSmall: { fontSize: 13, textAlign: 'center', lineHeight: 18, marginTop: 10 },
+  registrationFormTop: { width: '100%', paddingTop: 0, marginTop: 0 },
   inputsContainer: { width: '100%' },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', height: 55, borderRadius: 15, borderWidth: 1.5, paddingHorizontal: 15, marginBottom: 12 },
-  inputIcon: { marginRight: 10 },
-  inputField: { flex: 1, fontSize: 16, height: '100%' },
-  phoneGroup: { flexDirection: 'row', marginBottom: 12 },
-  countryPicker: { flexDirection: 'row', alignItems: 'center', height: 55, borderRadius: 15, borderWidth: 1.5, paddingHorizontal: 12, marginRight: 10 },
-  countryFlag: { fontSize: 20, marginRight: 6 },
-  countryValue: { fontSize: 15, fontWeight: '600', marginRight: 6 },
-  phoneInputWrapper: { flex: 1, height: 55, borderRadius: 15, borderWidth: 1.5, paddingHorizontal: 15 },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', height: 46, borderRadius: 12, borderWidth: 1.5, paddingHorizontal: 12, marginBottom: 8 },
+  inputIcon: { marginRight: 8 },
+  inputField: { flex: 1, fontSize: 15, height: '100%' },
+  phoneGroup: { flexDirection: 'row', marginBottom: 8 },
+  countryPicker: { flexDirection: 'row', alignItems: 'center', height: 46, borderRadius: 12, borderWidth: 1.5, paddingHorizontal: 10, marginRight: 8 },
+  countryFlag: { fontSize: 18, marginRight: 4 },
+  countryValue: { fontSize: 14, fontWeight: '600', marginRight: 4 },
+  phoneInputWrapper: { flex: 1, height: 46, borderRadius: 12, borderWidth: 1.5, paddingHorizontal: 12 },
+  restoreStatusBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 12, paddingHorizontal: 15 },
+  restoreStatusText: { fontSize: 13, fontWeight: '600', flex: 1, flexWrap: 'wrap' },
   footer: { paddingHorizontal: 30, paddingBottom: 40, paddingTop: 10 },
   indicatorContainer: { flexDirection: 'row', alignItems: 'center' },
   indicator: { height: 8, borderRadius: 4, marginHorizontal: 3 },
@@ -614,6 +635,10 @@ const styles = StyleSheet.create({
   countryItemFlag: { fontSize: 24, marginRight: 15 },
   countryItemName: { flex: 1, fontSize: 17 },
   countryItemValue: { fontSize: 15, fontWeight: '600' },
+
+  // LOADING OVERLAY
+  loadingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
+  loadingOverlayText: { color: '#FFF', fontSize: 15, fontWeight: '600', marginTop: 15, textAlign: 'center', paddingHorizontal: 30 },
 
   // NOTIFICATION SLIDE STYLES
   notificationPreview: { width: '100%', paddingHorizontal: 20, marginBottom: 20 },
