@@ -93,14 +93,6 @@ const OnboardingScreen = ({ onFinish }) => {
       description: t('onboarding.slide3_desc', { defaultValue: 'سجل لتفعيل ميزة المزامنة السحابية وحفظ محفظتك الاستثمارية بأمان' }),
       color: '#FF9500',
       type: 'register'
-    },
-    {
-      id: '4',
-      icon: 'notifications',
-      title: t('onboarding.slide4_title', { defaultValue: 'تفعيل الإشعارات' }),
-      description: t('onboarding.slide4_desc', { defaultValue: 'احصل على تنبيهات فورية لتغيرات الأسعار وأداء محفظتك الاستثمارية' }),
-      color: '#34C759',
-      type: 'notifications'
     }
   ], [t]);
 
@@ -166,15 +158,51 @@ const OnboardingScreen = ({ onFinish }) => {
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await AsyncStorage.setItem('@onboarding_completed', 'true');
-      onFinish();
+      askForNotificationsAndFinish();
     } catch (e) {
       console.warn('Finish onboarding error:', e.message);
       await AsyncStorage.setItem('@onboarding_completed', 'true');
-      onFinish();
+      askForNotificationsAndFinish();
     } finally {
       setIsLoading(false);
     }
   };
+
+  const askForNotificationsAndFinish = useCallback(() => {
+    Alert.alert(
+      language === 'ar' ? 'تفعيل الإشعارات' : 'Enable Notifications',
+      language === 'ar'
+        ? 'احصل على تنبيهات فورية لتغيرات أسعار العملات والذهب وأداء محفظتك.'
+        : 'Get instant alerts for currency and gold price changes and portfolio performance.',
+      [
+        {
+          text: language === 'ar' ? 'لاحقاً' : 'Later',
+          style: 'cancel',
+          onPress: async () => {
+            const defaultSettings = getDefaultNotificationSettings();
+            await saveNotificationSettings({ ...defaultSettings, enabled: false });
+            onFinish();
+          }
+        },
+        {
+          text: language === 'ar' ? 'تفعيل' : 'Enable',
+          onPress: async () => {
+            const granted = await requestNotificationPermissions();
+            const defaultSettings = getDefaultNotificationSettings();
+            const newSettings = {
+              ...defaultSettings,
+              enabled: granted,
+              priceAlertsEnabled: granted,
+              portfolioAlertsEnabled: granted,
+              dailySummaryEnabled: granted
+            };
+            await saveNotificationSettings(newSettings);
+            onFinish();
+          }
+        }
+      ]
+    );
+  }, [language, onFinish]);
 
   const handleNext = () => {
     const nextIndex = currentIndex + 1;
@@ -501,25 +529,23 @@ const OnboardingScreen = ({ onFinish }) => {
         keyExtractor={(item) => item.id}
       />
 
-      {currentIndex !== 3 && (
-        <View style={[styles.footer, { backgroundColor: colors.background }]}>
-          <TouchableOpacity
-            style={[styles.nextBtn, { width: '100%' }]}
-            onPress={handleNext}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <Text style={styles.nextBtnText}>
-                {currentIndex === slides.length - 1
-                  ? (name.trim() ? t('common.done') : t('onboarding.skip_register', { defaultValue: 'الدخول بدون تسجيل' }))
-                  : t('common.next')}
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      )}
+      <View style={[styles.footer, { backgroundColor: colors.background }]}>
+        <TouchableOpacity
+          style={[styles.nextBtn, { width: '100%' }]}
+          onPress={handleNext}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <Text style={styles.nextBtnText}>
+              {currentIndex === slides.length - 1
+                ? (name.trim() ? t('common.done') : t('onboarding.skip_register', { defaultValue: 'الدخول بدون تسجيل' }))
+                : t('common.next')}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
 
       {/* WARNING MODAL FOR SKIPPING REGISTRATION */}
       <Modal visible={showSkipWarning} animationType="slide" transparent={false}>
