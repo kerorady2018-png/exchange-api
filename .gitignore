@@ -13,3 +13,5 @@ build
 .vercel
 coverage
 *.tsbuildinfo
+android/
+ios/

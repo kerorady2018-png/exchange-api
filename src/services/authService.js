@@ -1,11 +1,9 @@
 // src/services/authService.js
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import CryptoJS from 'crypto-js';
 import SecureStorageService from '../utils/secureStorageService';
 import { CACHE_KEYS, CACHE_DURATIONS } from '../constants/cacheKeys';
 
 const API_BASE_URL = 'https://exchange-api-sepia.vercel.app/api';
-const SYNC_SECRET = 'core-sync-v1-secret';
 
 let syncTimer = null;
 const DEBOUNCE_DELAY = CACHE_DURATIONS?.DEBOUNCE_DELAY || 3000;
@@ -169,8 +167,6 @@ const AuthService = {
         }
       });
 
-      const signature = CryptoJS.HmacSHA256(JSON.stringify(payload), SYNC_SECRET).toString();
-
       // مهلة محددة بـ 4 ثوانٍ فقط، بدون محاولات تكرار مزعجة
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 4000);
@@ -178,8 +174,7 @@ const AuthService = {
       const response = await fetch(`${API_BASE_URL}/save-user`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${signature}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload),
         signal: controller.signal
@@ -212,7 +207,13 @@ const AuthService = {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-      const response = await fetch(`${API_BASE_URL}/get-user?phone=${encodeURIComponent(fullPhone)}&email=${encodeURIComponent(cleanEmail)}`, {
+      const response = await fetch(`${API_BASE_URL}/get-user`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: fullPhone,
+          email: cleanEmail
+        }),
         signal: controller.signal
       });
       clearTimeout(timeoutId);

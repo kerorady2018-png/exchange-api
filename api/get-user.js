@@ -23,8 +23,8 @@ export default async function handler(req, res) {
     return;
   }
 
-  // طلبات GET و POST مسموحة
-  if (req.method !== 'GET' && req.method !== 'POST') {
+  // طلبات POST فقط لحماية البيانات من الظهور في Logs الـ URL
+  if (req.method !== 'POST') {
     console.log('❌ Method not allowed:', req.method);
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
@@ -53,16 +53,9 @@ export default async function handler(req, res) {
       return res.status(500).json({ success: false, error: 'MongoDB URI not configured' });
     }
 
-    // استخراج معلمات البحث
-    let phone, email;
-    
-    if (req.method === 'GET') {
-      phone = req.query.phone;
-      email = req.query.email;
-    } else {
-      phone = req.body.phone;
-      email = req.body.email;
-    }
+    // استخراج معلمات البحث من Body
+    const phone = req.body.phone;
+    const email = req.body.email;
 
     console.log('🔍 Search parameters:', { phone, email });
 

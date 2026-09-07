@@ -168,20 +168,23 @@ export default function RatesScreen() {
     // إذا لم يكن هناك سعر سابق، لا تظهر نسبة
     if (!previousRates[item] || previousRates[item] === 0 || isNaN(previousRates[item])) {
       return {
-        percentFormatted: '0.00',
+        percentFormatted: null,
         isUp: false,
-        isEqual: true
+        isEqual: true,
+        isInvalid: false
       };
     }
     
-    const prevRate = previousRates[item];
+    const prevRate = Number(previousRates[item]);
+    currentRate = Number(currentRate);
     
     // حماية ضد قيم غير صحيحة
-    if (!currentRate || currentRate === 0 || isNaN(currentRate)) {
+    if (!currentRate || currentRate === 0 || isNaN(currentRate) || !prevRate || isNaN(prevRate)) {
       return {
-        percentFormatted: '0.00',
+        percentFormatted: null,
         isUp: false,
-        isEqual: true
+        isEqual: true,
+        isInvalid: false
       };
     }
     
@@ -191,35 +194,41 @@ export default function RatesScreen() {
     // حماية إضافية ضد قيم غير صحيحة
     if (!isFinite(percent) || isNaN(percent)) {
       return {
-        percentFormatted: '0.00',
+        percentFormatted: null,
         isUp: false,
-        isEqual: true
+        isEqual: true,
+        isInvalid: false
       };
     }
     
-    // تنسيق النسبة المئوية مع تبسيط الأرقام الكبيرة
-    let percentFormatted;
     const absPercent = Math.abs(percent);
     
-    if (absPercent >= 1000) {
-      // للأرقام الكبيرة جداً: 5009% → 5K%
-      const kValue = (absPercent / 1000).toFixed(1);
-      percentFormatted = `${kValue}K`;
-    } else if (absPercent >= 100) {
-      // للأرقام الكبيرة: 500% → 500%
-      percentFormatted = absPercent.toFixed(0);
-    } else if (absPercent >= 1) {
-      // للأرقام المتوسطة: 12% → 12%
+    // إذا كانت النسبة كبيرة جداً غير منطقية للعملات (أكثر من 50%)
+    // فالبيانات السابقة ربما كانت خاطئة أو من عملة أساسية مختلفة
+    if (absPercent > 50) {
+      return {
+        percentFormatted: null,
+        isUp: false,
+        isEqual: true,
+        isInvalid: true
+      };
+    }
+    
+    // تنسيق النسبة المئوية برقم أو رقمين فقط
+    let percentFormatted;
+    if (absPercent >= 1) {
+      // للأرقام >= 1%: رقم صحيح (1%, 12%)
       percentFormatted = absPercent.toFixed(0);
     } else {
-      // للأرقام الصغيرة: 0.12% → 0.12%
+      // للأرقام < 1%: رقمين عشريين (0.12%)
       percentFormatted = absPercent.toFixed(2);
     }
     
     return {
       percentFormatted,
       isUp: diff > 0,
-      isEqual: Math.abs(percent) < 0.01
+      isEqual: absPercent < 0.01,
+      isInvalid: false
     };
   }, [previousRates]);
 
@@ -325,7 +334,7 @@ export default function RatesScreen() {
 
         <View style={{ alignItems: 'flex-end', width: '25%', backgroundColor: 'transparent' }}>
           <Text style={{ fontSize: 18, fontWeight: '900', color: colors.text }}>{formattedRate}</Text>
-          {Object.keys(previousRates).length > 0 && previousRates[item] ? (
+          {Object.keys(previousRates).length > 0 && previousRates[item] && !change.isInvalid && change.percentFormatted ? (
             <View style={{
               paddingHorizontal: 6,
               paddingVertical: 2,

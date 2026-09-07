@@ -18,6 +18,7 @@ export async function fetchRawMetalsApiData() {
     if (payload) {
       const metals = payload.metals || payload.data?.metals || {};
       const calculatedRates = payload.calculatedRates || payload.currencies?.rates || payload.data?.currencies?.rates || {};
+      const currencyRates = payload.currencies?.rates || payload.rates || payload.data?.currencies?.rates || payload.data?.rates || {};
 
       // بناء بيانات الذهب من الهياكل المختلفة الممكنة
       let goldData = metals.goldData || metals.gold || payload.goldData;
@@ -40,14 +41,13 @@ export async function fetchRawMetalsApiData() {
         };
       }
 
-      if (goldData || silverData) {
-        return {
-          goldData: goldData || null,
-          silverData: silverData || null,
-          cbeData: {},
-          globalRates: {}
-        };
-      }
+      return {
+        goldData: goldData || null,
+        silverData: silverData || null,
+        cbeData: {},
+        globalRates: currencyRates || {},
+        currenciesData: { rates: currencyRates, banqueMisrRates: payload.currencies?.banqueMisrRates || {} }
+      };
     }
 
     // في حالة عدم وجود البيانات، نرجع كائن فارغ
@@ -55,7 +55,8 @@ export async function fetchRawMetalsApiData() {
       goldData: null,
       silverData: null,
       cbeData: {},
-      globalRates: {}
+      globalRates: {},
+      currenciesData: { rates: {}, banqueMisrRates: {} }
     };
   } catch (error) {
     console.error('Failed to fetch static data:', error);

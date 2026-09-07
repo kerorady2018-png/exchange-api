@@ -139,10 +139,18 @@ export async function getMetalsData(baseCurrency = 'EGP', forexRates = {}, force
   }
 
   try {
-    // 2. استخدام الكاش الخاص بالعملات لتقليل الطلبات المزدوجة
-    // الآن يستخدم الـ API الثابت بدلاً من الطلبات المباشرة
-    const currenciesData = await getCurrenciesData(forceRefresh);
+    // 2. جلب بيانات المعادن من الـ API الثابت (يحتوي على بيانات العملات أيضاً)
     const rawApiData = await fetchRawMetalsApiData();
+
+    // 3. استخدام بيانات العملات من نفس الاستجابة لتجنب طلب مزدوج
+    let currenciesData;
+    if (rawApiData?.currenciesData && rawApiData.currenciesData.rates && Object.keys(rawApiData.currenciesData.rates).length > 0) {
+      currenciesData = rawApiData.currenciesData;
+    } else if (forexRates && Object.keys(forexRates).length > 0) {
+      currenciesData = { rates: forexRates };
+    } else {
+      currenciesData = await getCurrenciesData(forceRefresh);
+    }
 
     // تمرير الأسعار الموحدة للمحرك الحسابي
     const aggregated = processMetalsData(rawApiData, currenciesData, baseCurrency, forexRates);

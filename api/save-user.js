@@ -23,24 +23,10 @@ export default async function handler(req, res) {
     return;
   }
 
-  // طلبات POST و GET مسموحة للاختبار
-  if (req.method !== 'POST' && req.method !== 'GET') {
+  // طلبات POST فقط
+  if (req.method !== 'POST') {
     console.log('❌ Method not allowed:', req.method);
     return res.status(405).json({ success: false, error: 'Method not allowed' });
-  }
-
-  // للطريقة GET، اختبار بسيط فقط
-  if (req.method === 'GET') {
-    return res.status(200).json({ 
-      success: true, 
-      message: 'API is working',
-      timestamp: new Date().toISOString(),
-      environment: {
-        hasMongoUri: !!process.env.MONGODB_URI,
-        dbName: process.env.DB_NAME,
-        collectionName: process.env.COLLECTION_NAME
-      }
-    });
   }
 
   console.log('📥 Save-user request received:', {
