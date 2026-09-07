@@ -9,6 +9,7 @@ import { SettingsContext } from '../context/SettingsContext';
 import { BaseCurrencyContext } from '../context/BaseCurrencyContext';
 import AuthService from '../services/authService';
 import { requestNotificationPermissions, saveNotificationSettings, getDefaultNotificationSettings } from '../services/notificationService';
+import { CACHE_KEYS } from '../constants/cacheKeys';
 import { currencyInfo } from '../constants/currencyData';
 
 const { width, height } = Dimensions.get('window');
@@ -125,14 +126,39 @@ const OnboardingScreen = ({ onFinish }) => {
       }
 
       if (!isSkipping && name.trim().length > 0) {
-        await AuthService.saveUser({
-          name: name.trim(),
-          phone: phone.trim(),
-          email: email.trim().toLowerCase(),
-          countryCode: selectedCountry.value,
-          portfolio: [],
-          target: null
-        });
+        const cleanPhone = AuthService.formatPhone ? AuthService.formatPhone(phone.trim()) : phone.trim();
+        const cleanEmail = email.trim().toLowerCase();
+
+        // محاولة استرداد بيانات المستخدم السابقة من السحابة
+        try {
+          const existingUser = await AuthService.getUser(cleanPhone, cleanEmail, selectedCountry.value);
+          if (existingUser.success && existingUser.user) {
+            console.log('✅ Restoring user data from cloud');
+            await AuthService.applyRestoredData(existingUser.user, selectedCountry.value);
+            await AsyncStorage.setItem(CACHE_KEYS.IS_DATA_SAVED, 'true');
+          } else {
+            // مستخدم جديد - احفظ البيانات محلياً
+            console.log('ℹ️ New user, saving locally');
+            await AuthService.saveUser({
+              name: name.trim(),
+              phone: phone.trim(),
+              email: email.trim().toLowerCase(),
+              countryCode: selectedCountry.value,
+              portfolio: [],
+              target: null
+            });
+          }
+        } catch (restoreError) {
+          console.warn('Restore error during onboarding:', restoreError.message);
+          await AuthService.saveUser({
+            name: name.trim(),
+            phone: phone.trim(),
+            email: email.trim().toLowerCase(),
+            countryCode: selectedCountry.value,
+            portfolio: [],
+            target: null
+          });
+        }
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

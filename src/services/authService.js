@@ -241,13 +241,13 @@ const AuthService = {
       await SecureStorageService.save(CACHE_KEYS.USER_COUNTRY, currentCountryCode);
       if (userData.email) await SecureStorageService.save(CACHE_KEYS.USER_EMAIL, userData.email.toLowerCase());
 
-      if (userData.portfolio) {
+      if (userData.portfolio !== undefined && userData.portfolio !== null) {
         await AsyncStorage.setItem(CACHE_KEYS.PORTFOLIO_ASSETS, JSON.stringify(userData.portfolio));
       }
-      if (userData.totalValue) {
+      if (userData.totalValue !== undefined && userData.totalValue !== null) {
         await AsyncStorage.setItem(CACHE_KEYS.PORTFOLIO_TOTAL_VALUE, String(userData.totalValue));
       }
-      if (userData.target) {
+      if (userData.target !== undefined && userData.target !== null) {
         await AsyncStorage.setItem(CACHE_KEYS.PORTFOLIO_TARGET, String(userData.target));
       }
 
