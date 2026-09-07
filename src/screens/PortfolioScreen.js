@@ -14,6 +14,8 @@ import { useTheme } from '../hooks/useTheme';
 import { getCurrenciesData } from '../services/currenciesCoreData';
 import { getMetalsData } from '../services/FinalMetalData';
 import { trackPortfolioValue, getPortfolioHistory, isHistoryDataSufficient } from '../services/historyTracker';
+import { checkAndTriggerPortfolioAlerts, checkAndSendDailySummary } from '../services/priceAlertChecker';
+import { initializeNotifications } from '../services/notificationService';
 import { CACHE_KEYS } from '../constants/cacheKeys';
 import ConnectionIndicator from '../components/layout/ConnectionIndicator';
 import NeoBackground from '../components/layout/NeoBackground';
@@ -297,6 +299,31 @@ export default function PortfolioScreen() {
     const hasAsset = assets.some(a => a.targetValue !== undefined && a.targetValue !== '' && a.targetValue !== null);
     return hasPortfolio || hasAsset;
   }, [portfolioTarget, assets]);
+
+  // تهيئة الإشعارات والتحقق من تنبيهات المحفظة
+  useEffect(() => {
+    const initAndCheck = async () => {
+      try {
+        await initializeNotifications();
+
+        if (assets.length === 0 || !currencyRates) return;
+
+        const settingsStr = await AsyncStorage.getItem('@notification_settings');
+        const settings = settingsStr ? JSON.parse(settingsStr) : null;
+
+        if (settings && settings.enabled) {
+          await checkAndTriggerPortfolioAlerts(assets, currencyRates, baseCurrency, settings);
+          await checkAndSendDailySummary(assets, currencyRates, baseCurrency, settings);
+        }
+      } catch (error) {
+        console.warn('Portfolio notification check failed:', error);
+      }
+    };
+
+    if (isLoaded.current) {
+      initAndCheck();
+    }
+  }, [assets, currencyRates, baseCurrency]);
 
   useEffect(() => {
     let animation;

@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { getCurrenciesData } from '../services/currenciesCoreData';
+import { checkAndTriggerPriceAlerts } from '../services/priceAlertChecker';
 import { CACHE_KEYS, CACHE_DURATIONS } from '../constants/cacheKeys';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -61,7 +62,20 @@ export const RatesProvider = ({ children }) => {
       const data = await getCurrenciesData(isManualRefresh);
       
       if (data) {
-        if (data.rates) setRates(data.rates);
+        const previousRates = rates;
+        if (data.rates) {
+          setRates(data.rates);
+          // فحص تنبيهات الأسعار بعد تحديث الأسعار
+          try {
+            const settingsStr = await AsyncStorage.getItem('@notification_settings');
+            const settings = settingsStr ? JSON.parse(settingsStr) : null;
+            if (settings && settings.enabled) {
+              await checkAndTriggerPriceAlerts(data.rates, previousRates, settings);
+            }
+          } catch (alertError) {
+            console.warn('Price alert check failed:', alertError);
+          }
+        }
         // تحديث banqueMisrRates فقط إذا كانت تحتوي على بيانات
         if (data.banqueMisrRates && Object.keys(data.banqueMisrRates).length > 0) {
           setBanqueMisrRates(data.banqueMisrRates);
@@ -73,7 +87,7 @@ export const RatesProvider = ({ children }) => {
     } finally {
       setLoadingRates(false);
     }
-  }, []);
+  }, [rates]);
 
   useEffect(() => {
     fetchGlobalRates(false);

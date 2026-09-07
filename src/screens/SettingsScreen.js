@@ -16,6 +16,7 @@ import MultiSelectPicker from '../components/common/MultiSelectPicker';
 import BaseCurrencySelector from '../components/common/BaseCurrencySelector';
 import AuthService from '../services/authService';
 import SecureStorageService from '../utils/secureStorageService';
+import { loadNotificationSettings, saveNotificationSettings, requestNotificationPermissions } from '../services/notificationService';
 
 const SettingsScreen = () => {
   const { i18n, t } = useTranslation();
@@ -46,6 +47,20 @@ const SettingsScreen = () => {
   const [isDataSaved, setIsDataSaved] = useState(false);
   const [isAboutExpanded, setIsAboutExpanded] = useState(false);
 
+  const [notificationSettings, setNotificationSettings] = useState({
+    enabled: false,
+    priceAlertsEnabled: false,
+    portfolioAlertsEnabled: false,
+    dailySummaryEnabled: false,
+    priceThreshold: 0.05,
+    selectedCurrencies: ['USD', 'EUR', 'GBP'],
+    quietHoursEnabled: false,
+    quietHoursStart: 22,
+    quietHoursEnd: 8,
+    minIntervalMinutes: 30,
+  });
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+
   useEffect(() => {
     const loadSavedUserData = async () => {
       try {
@@ -61,6 +76,13 @@ const SettingsScreen = () => {
           if (savedCountry) setSelectedCountry(savedCountry);
           if (savedEmail) setUserEmail(savedEmail);
           if (savedStatus === 'true') setIsDataSaved(true);
+        }
+
+        // تحميل إعدادات الإشعارات
+        const savedNotifSettings = await loadNotificationSettings();
+        if (savedNotifSettings) {
+          setNotificationSettings(savedNotifSettings);
+          setNotificationsEnabled(savedNotifSettings.enabled);
         }
       } catch (error) {
         console.warn('Failed to load secure data:', error.message);
@@ -238,6 +260,61 @@ const SettingsScreen = () => {
     }
   };
 
+  // معالجة إعدادات الإشعارات
+  const handleNotificationToggle = async (key) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    let newSettings = { ...notificationSettings };
+
+    if (key === 'enabled') {
+      const newValue = !notificationSettings.enabled;
+      if (newValue) {
+        const granted = await requestNotificationPermissions();
+        if (!granted) {
+          alert(language === 'ar' ? 'يجب منح صلاحية الإشعارات من إعدادات الجهاز' : 'Notification permission is required');
+          return;
+        }
+      }
+      newSettings = {
+        ...newSettings,
+        enabled: newValue,
+        priceAlertsEnabled: newValue,
+        portfolioAlertsEnabled: newValue,
+        dailySummaryEnabled: newValue,
+      };
+      setNotificationsEnabled(newValue);
+    } else {
+      newSettings = {
+        ...newSettings,
+        [key]: !notificationSettings[key],
+        enabled: notificationSettings.enabled || false,
+      };
+    }
+
+    setNotificationSettings(newSettings);
+    await saveNotificationSettings(newSettings);
+  };
+
+  const handlePriceThresholdChange = async (text) => {
+    const value = parseFloat(text) || 0;
+    const newSettings = { ...notificationSettings, priceThreshold: value };
+    setNotificationSettings(newSettings);
+    await saveNotificationSettings(newSettings);
+  };
+
+  const handleToggleCurrencyAlert = async (currency) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const selected = new Set(notificationSettings.selectedCurrencies || []);
+    if (selected.has(currency)) {
+      selected.delete(currency);
+    } else {
+      selected.add(currency);
+    }
+    const newSettings = { ...notificationSettings, selectedCurrencies: Array.from(selected) };
+    setNotificationSettings(newSettings);
+    await saveNotificationSettings(newSettings);
+  };
+
   const currencyItems = useMemo(() => {
     const keys = availableCurrencies.length > 0 ? availableCurrencies : Object.keys(currencyInfo);
     const priorityOrder = ['EGP', 'USD', 'EUR', 'SAR', 'AED', 'GBP', 'KWD', 'QAR', 'BHD', 'OMR', 'JOD'];
@@ -302,6 +379,51 @@ const SettingsScreen = () => {
             <Text style={[styles.hintText, { color: colors.sectionHeader, marginTop: 6, fontSize: 11 }]}>
               {t('common.favorites_desc')}
             </Text>
+          </View>
+
+          {/* NOTIFICATIONS */}
+          <View style={[styles.card, { backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.75)', borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)' }]}>
+            <Text style={[styles.cardHeader, { color: colors.sectionHeader }]}>{language === 'ar' ? 'إعدادات الإشعارات' : 'Notification Settings'}</Text>
+
+            <View style={styles.preferenceRow}>
+              <Text style={[styles.preferenceLabel, { color: colors.text }]}>{language === 'ar' ? 'تفعيل الإشعارات' : 'Enable Notifications'}</Text>
+              <Switch value={notificationSettings.enabled} onValueChange={() => handleNotificationToggle('enabled')} trackColor={{ false: '#767577', true: '#387c9f' }} style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }} />
+            </View>
+
+            {notificationSettings.enabled && (
+              <>
+                <View style={[styles.preferenceRow, { borderBottomWidth: 0, marginTop: 2 }]}>
+                  <Text style={[styles.preferenceLabel, { color: colors.text }]}>{language === 'ar' ? 'تنبيهات أسعار العملات' : 'Price Alerts'}</Text>
+                  <Switch value={notificationSettings.priceAlertsEnabled} onValueChange={() => handleNotificationToggle('priceAlertsEnabled')} trackColor={{ false: '#767577', true: '#387c9f' }} style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }} />
+                </View>
+
+                {notificationSettings.priceAlertsEnabled && (
+                  <View style={{ marginTop: 8, paddingLeft: 12 }}>
+                    <Text style={{ color: colors.text, fontSize: 12, marginBottom: 4 }}>
+                      {language === 'ar' ? 'عتبة التغير المئوي (%)' : 'Price Change Threshold (%)'}
+                    </Text>
+                    <TextInput
+                      style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border, height: 36, paddingVertical: 4 }]}
+                      placeholder="0.5"
+                      placeholderTextColor={colors.sectionHeader}
+                      keyboardType="numeric"
+                      value={String(notificationSettings.priceThreshold || '')}
+                      onChangeText={handlePriceThresholdChange}
+                    />
+                  </View>
+                )}
+
+                <View style={[styles.preferenceRow, { borderBottomWidth: 0, marginTop: 2 }]}>
+                  <Text style={[styles.preferenceLabel, { color: colors.text }]}>{language === 'ar' ? 'تنبيهات المحفظة' : 'Portfolio Alerts'}</Text>
+                  <Switch value={notificationSettings.portfolioAlertsEnabled} onValueChange={() => handleNotificationToggle('portfolioAlertsEnabled')} trackColor={{ false: '#767577', true: '#387c9f' }} style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }} />
+                </View>
+
+                <View style={[styles.preferenceRow, { borderBottomWidth: 0, marginTop: 2 }]}>
+                  <Text style={[styles.preferenceLabel, { color: colors.text }]}>{language === 'ar' ? 'الملخص اليومي' : 'Daily Summary'}</Text>
+                  <Switch value={notificationSettings.dailySummaryEnabled} onValueChange={() => handleNotificationToggle('dailySummaryEnabled')} trackColor={{ false: '#767577', true: '#387c9f' }} style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }} />
+                </View>
+              </>
+            )}
           </View>
 
           {/* PORTFOLIO BACKUP */}

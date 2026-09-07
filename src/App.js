@@ -9,6 +9,7 @@ import { SettingsProvider } from './context/SettingsContext';
 import { RatesProvider } from './context/RatesContext';
 
 import AuthService from './services/authService';
+import { initializeNotifications } from './services/notificationService';
 import NetworkService from './utils/networkService';
 import OnboardingScreen from './screens/OnboardingScreen';
 import AppNavigator from './navigation/AppNavigator';
@@ -22,6 +23,13 @@ const RootNavigator = () => {
     const checkOnboarding = async () => {
       try {
         const onboardingCompleted = await AsyncStorage.getItem('@onboarding_completed');
+        // تهيئة الإشعارات عند بدء التطبيق
+        try {
+          await initializeNotifications();
+        } catch (notifError) {
+          console.warn('Notifications initialization failed:', notifError);
+        }
+
         if (isMounted) {
           if (!onboardingCompleted) setShowOnboarding(true);
           setIsReady(true);
