@@ -61,8 +61,10 @@ export default function RatesScreen() {
   const {
     rates: contextRates,
     banqueMisrRates: contextBmRates,
+    banqueMisrIsFallback,
     loadingRates: contextLoading,
     lastUpdated: contextLastUpdated,
+    error: ratesError,
     refreshRates
   } = useContext(RatesContext);
   const { t } = useTranslation();
@@ -175,7 +177,7 @@ export default function RatesScreen() {
       };
     }
     
-    const prevRate = Number(previousRates[item]);
+    const prevRate = Number(previousRates[baseCurrency]) / Number(previousRates[item]);
     currentRate = Number(currentRate);
     
     // حماية ضد قيم غير صحيحة
@@ -230,7 +232,7 @@ export default function RatesScreen() {
       isEqual: absPercent < 0.01,
       isInvalid: false
     };
-  }, [previousRates]);
+  }, [previousRates, baseCurrency]);
 
   const handleSaveAlerts = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -312,23 +314,26 @@ export default function RatesScreen() {
           </View>
         </View>
 
-        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', minHeight: 45 }}>
-          {bmDetails && (bmDetails.buy || bmDetails.purchase) ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-              <View style={{ alignItems: 'center', marginHorizontal: 8, minWidth: 48 }}>
-                <Text style={{ fontSize: 9, fontWeight: '800', color: colors.text, textTransform: 'uppercase', opacity: 0.6 }}>{t('common.buy')}</Text>
-                <Text style={{ fontSize: 14, fontWeight: '900', color: colors.text }}>{Number(bmDetails.buy || bmDetails.purchase).toFixed(2)}</Text>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', minHeight: 45 }}>
+          {bmDetails && bmDetails.buy > 0 && bmDetails.sell >= bmDetails.buy ? (
+            <>
+              <Text style={{ fontSize: 8, color: colors.text, opacity: 0.65 }}>{t('rates.bank_egp', { defaultValue: 'بنك مصر · EGP' })}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ alignItems: 'center', marginHorizontal: 3 }}>
+                  <Text style={{ fontSize: 9, fontWeight: '800', color: colors.text, opacity: 0.6 }}>{t('common.buy')}</Text>
+                  <Text adjustsFontSizeToFit numberOfLines={1} style={{ fontSize: 13, fontWeight: '900', color: colors.text }}>{Number(bmDetails.buy).toFixed(item === 'JPY' ? 4 : 2)}</Text>
+                </View>
+                <View style={{ width: 1, height: 22, backgroundColor: colors.text, opacity: 0.15, marginHorizontal: 2 }} />
+                <View style={{ alignItems: 'center', marginHorizontal: 3 }}>
+                  <Text style={{ fontSize: 9, fontWeight: '800', color: colors.text, opacity: 0.6 }}>{t('common.sell')}</Text>
+                  <Text adjustsFontSizeToFit numberOfLines={1} style={{ fontSize: 13, fontWeight: '900', color: colors.text }}>{Number(bmDetails.sell).toFixed(item === 'JPY' ? 4 : 2)}</Text>
+                </View>
               </View>
-              <View style={{ width: 1.5, height: 22, backgroundColor: colors.text, opacity: 0.15, marginHorizontal: 2 }} />
-              <View style={{ alignItems: 'center', marginHorizontal: 8, minWidth: 48 }}>
-                <Text style={{ fontSize: 9, fontWeight: '800', color: colors.text, textTransform: 'uppercase', opacity: 0.6 }}>{t('common.sell')}</Text>
-                <Text style={{ fontSize: 14, fontWeight: '900', color: colors.text }}>{Number(bmDetails.sell || bmDetails.sale).toFixed(2)}</Text>
-              </View>
-            </View>
+              {bmDetails.quoteType === 'transfer' && <Text style={{ fontSize: 8, color: colors.text }}>{t('rates.bank_transfer', { defaultValue: 'تحويلات' })}</Text>}
+              {(bmDetails.stale || banqueMisrIsFallback) && <Text style={{ fontSize: 8, color: colors.text }}>{t('rates.bank_cached', { defaultValue: 'بيانات محفوظة' })}</Text>}
+            </>
           ) : (
-            <View style={{ height: 24, width: 24, opacity: 0.08, justifyContent: 'center', alignItems: 'center' }}>
-              <Ionicons name="business-outline" size={16} color={colors.text} />
-            </View>
+            <Text style={{ fontSize: 9, color: colors.text, opacity: 0.6 }}>{t('rates.bank_unavailable', { defaultValue: 'غير متاح بالبنك' })}</Text>
           )}
         </View>
 
@@ -362,7 +367,7 @@ export default function RatesScreen() {
         </View>
       </TouchableOpacity>
     );
-  }, [contextFavorites, baseCurrency, contextRates, contextBmRates, t, colors, isDarkMode, getRateChange, handleToggleFavorite]);
+  }, [contextFavorites, baseCurrency, contextRates, contextBmRates, banqueMisrIsFallback, t, colors, isDarkMode, getRateChange, handleToggleFavorite]);
 
   // تم نقل الشرط المباشر إلى هنا بعد جميع الـ Hooks
   if (contextLoading && Object.keys(contextRates).length === 0) {
@@ -417,7 +422,22 @@ export default function RatesScreen() {
         <FlatList
           data={sortedRates}
           keyExtractor={(item) => item}
-          ListHeaderComponent={renderHeader}
+          ListHeaderComponent={<View>
+            {renderHeader()}
+            {ratesError && Object.keys(contextRates).length > 0 && (
+              <Text accessibilityRole="alert" style={{ color: colors.text, textAlign: 'center', padding: 12 }}>
+                {t('rates.stale_prices', { defaultValue: 'تعذر تحديث الأسعار. المعروض آخر بيانات محفوظة وليس أسعاراً مباشرة.' })}
+              </Text>
+            )}
+          </View>}
+          ListEmptyComponent={<View style={{ padding: 24, alignItems: 'center' }}>
+            <Text accessibilityRole="alert" style={{ color: colors.text, textAlign: 'center', marginBottom: 16 }}>
+              {t('rates.load_failed', { defaultValue: 'تعذر تحميل الأسعار. تحقق من الإنترنت ثم أعد المحاولة.' })}
+            </Text>
+            <TouchableOpacity accessibilityRole="button" onPress={handleRefresh} disabled={contextLoading} style={{ padding: 14 }}>
+              <Text style={{ color: '#387c9f', fontWeight: 'bold' }}>{t('common.retry', { defaultValue: 'إعادة المحاولة' })}</Text>
+            </TouchableOpacity>
+          </View>}
           renderItem={renderCurrencyItem}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}

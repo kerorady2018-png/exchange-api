@@ -1,353 +1,293 @@
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
+const { fetchBanqueMisrRates } = require('./banque-misr.cjs');
+const { fetchCBERates } = require('./cbeFetcher.cjs');
 
 // مسارات الملفات
 const RATES_FILE = path.join(__dirname, '../public/data/rates.json');
 const METADATA_FILE = path.join(__dirname, '../public/data/metadata.json');
 
 // أسعار عملات احتياطية لضمان وجود جميع العملات حتى لو فشل الـ API الخارجي
-const DEFAULT_GLOBAL_RATES = {
-  USD: 1, EUR: 0.92, GBP: 0.78, EGP: 48.5, SAR: 3.75, AED: 3.67, KWD: 0.31,
-  QAR: 3.64, BHD: 0.38, OMR: 0.38, JOD: 0.71, CHF: 0.86, CAD: 1.36, AUD: 1.51, JPY: 154.5, DKK: 6.86, NOK: 10.6, SEK: 10.5, CNY: 7.24
+const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+const positive = (value) => (typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')) && Number.isFinite(Number(value)) && Number(value) > 0;
+const validTime = (value, now) => typeof value === 'string' && Number.isFinite(Date.parse(value)) && Date.parse(value) <= now && now - Date.parse(value) <= MAX_AGE_MS;
+const oldestTime = (times) => times.reduce((oldest, value) => !oldest || Date.parse(value) < Date.parse(oldest) ? value : oldest, null);
+const average = (values) => {
+  const sum = values.reduce((total, value) => total + value, 0);
+  if (Number.isFinite(sum)) return sum / values.length;
+  const maximum = Math.max(...values);
+  return maximum * (values.reduce((total, value) => total + value / maximum, 0) / values.length);
 };
-
-// خريطة لربط رموز العملات بأسماء البنك المركزي
-const cbeNameMapping = {
-  'USD': 'دولار أمريكي',
-  'EUR': 'يورو',
-  'GBP': 'جنيه إسترليني',
-  'CAD': 'دولار كندى',
-  'DKK': 'كرون دانمركى',
-  'NOK': 'كرون نرويجي',
-  'SEK': 'كرون سويدى',
-  'CHF': 'فرنك سويسری',
-  'SAR': 'ريال سعودى',
-  'AED': 'درهم اماراتى',
-  'KWD': 'دينار كويتى',
-  'QAR': 'ريال قطرى',
-  'BHD': 'دينار البحرين',
-  'OMR': 'ريال عمانى',
-  'JOD': 'دينار اردنی',
-  'AUD': 'دولار استرالی',
-  'JPY': 'ين يابانی',
-  'CNY': 'يوان صيني'
-};
-
-const banqueMisrNameMapping = {
-  'USD': 'دولار أمريكي',
-  'EUR': 'يورو',
-  'GBP': 'جنيه إسترليني',
-  'SAR': 'ريال سعودى',
-  'AED': 'درهم اماراتى',
-  'KWD': 'دينار كويتى',
-  'QAR': 'ريال قطرى',
-  'CHF': 'فرنك سويسري',
-  'JPY': 'ين ياباني',
-  'CAD': 'دولار كندي',
-  'AUD': 'دولار أسترالي',
-  'BHD': 'دينار بحريني',
-  'OMR': 'ريال عماني',
-  'JOD': 'دينار أردني',
-  'DKK': 'كرونة دانمركية',
-  'NOK': 'كرونة نرويجية',
-  'SEK': 'كرونة سويدية',
-  'CNY': 'يوان صيني'
-};
-
-const normalizeArabic = (text) => {
-  if (!text) return '';
-  return text
-    .toString()
-    .trim()
-    .replace(/[يى]/g, 'ي')
-    .replace(/[أإآا]/g, 'ا')
-    .replace(/ة/g, 'ه');
-};
-
-const findEntryDeep = (obj, targetCode, targetArabicName) => {
-  if (!obj) return null;
-
-  if (obj[targetCode]) return obj[targetCode];
-  if (obj[targetCode.toLowerCase()]) return obj[targetCode.toLowerCase()];
-  if (obj[targetCode.toUpperCase()]) return obj[targetCode.toUpperCase()];
-
-  const normalizedTargetAr = normalizeArabic(targetArabicName);
-
-  for (const [key, value] of Object.entries(obj)) {
-    const normalizedKey = normalizeArabic(key);
-    
-    if (normalizedTargetAr && (normalizedKey === normalizedTargetAr || normalizedKey.includes(normalizedTargetAr) || normalizedTargetAr.includes(normalizedKey))) {
-      return value;
-    }
-
-    if (value && typeof value === 'object') {
-      if (
-        value.code === targetCode || 
-        value.currency === targetCode || 
-        value.symbol === targetCode ||
-        normalizeArabic(value.name) === normalizedTargetAr
-      ) {
-        return value;
-      }
-    }
-  }
-
-  return null;
-};
-
-const fetchCurrenciesData = async () => {
+const readSnapshot = () => {
   try {
-    console.log('Fetching currencies data...');
-    const [globalRes, cbeRes, banqueMisrRes] = await Promise.allSettled([
-      axios.get('https://open.er-api.com/v6/latest/USD', { timeout: 15000 }),
-      axios.get('https://cbe-api.vercel.app/api/rates', { timeout: 15000 }),
-      axios.get('https://exchange-api-sepia.vercel.app/api/banquemisr', { timeout: 15000 })
-    ]);
-
-    let rawGlobalRates = globalRes.status === 'fulfilled' && globalRes.value.data?.rates 
-      ? globalRes.value.data.rates 
-      : {};
-    
-    // الدمج مع العملات الافتراضية لضمان عدم نقص أي عملة
-    const globalRates = { ...DEFAULT_GLOBAL_RATES, ...rawGlobalRates };
-
-    const cbeData = cbeRes.status === 'fulfilled' ? cbeRes.value.data.rates || cbeRes.value.data || {} : {};
-    
-    const rawBm = banqueMisrRes.status === 'fulfilled' ? banqueMisrRes.value.data : null;
-    let banqueMisrData = rawBm?.rates || rawBm?.data || rawBm || {};
-
-    if (!banqueMisrData || Object.keys(banqueMisrData).length === 0) {
-      banqueMisrData = cbeData;
-    }
-
-    const blendedRates = { ...globalRates };
-    const allCurrencies = Object.keys(globalRates);
-
-    const cbeUSD = findEntryDeep(cbeData, 'USD', 'دولار أمريكي');
-    const bmUSD = findEntryDeep(banqueMisrData, 'USD', 'دولار أمريكي');
-    let blendedEgpRate = Number(globalRates['EGP']) || 48.5;
-
-    let usdPriceSources = [];
-    if (globalRates['EGP']) usdPriceSources.push(Number(globalRates['EGP']));
-    
-    const usdBuy = cbeUSD?.buy || cbeUSD?.purchase;
-    const usdSell = cbeUSD?.sell || cbeUSD?.sale;
-    if (usdBuy && usdSell) usdPriceSources.push((Number(usdBuy) + Number(usdSell)) / 2);
-
-    const bmUsdBuy = bmUSD?.buy || bmUSD?.purchase;
-    const bmUsdSell = bmUSD?.sell || bmUSD?.sale;
-    if (bmUsdBuy && bmUsdSell) usdPriceSources.push((Number(bmUsdBuy) + Number(bmUsdSell)) / 2);
-
-    if (usdPriceSources.length > 0) {
-      blendedEgpRate = usdPriceSources.reduce((sum, val) => sum + val, 0) / usdPriceSources.length;
-      blendedRates['EGP'] = blendedEgpRate;
-    }
-
-    allCurrencies.forEach((code) => {
-      if (code === 'USD' || code === 'EGP') return;
-
-      const globalRateForCode = Number(globalRates[code]);
-      const arabicName = cbeNameMapping[code];
-      const cbeEntry = findEntryDeep(cbeData, code, arabicName);
-      const bmEntry = findEntryDeep(banqueMisrData, code, banqueMisrNameMapping[code] || arabicName);
-
-      if (blendedRates['EGP'] && globalRateForCode) {
-        const globalEgpPrice = blendedRates['EGP'] / globalRateForCode;
-        let priceSources = [globalEgpPrice];
-
-        const cbeBuy = cbeEntry?.buy || cbeEntry?.purchase;
-        const cbeSell = cbeEntry?.sell || cbeEntry?.sale;
-        if (cbeBuy && cbeSell) {
-          priceSources.push((Number(cbeBuy) + Number(cbeSell)) / 2);
-        }
-
-        const bmBuy = bmEntry?.buy || bmEntry?.purchase;
-        const bmSell = bmEntry?.sell || bmEntry?.sale;
-        if (bmBuy && bmSell) {
-          priceSources.push((Number(bmBuy) + Number(bmSell)) / 2);
-        }
-
-        const targetEgpPrice = priceSources.reduce((sum, val) => sum + val, 0) / priceSources.length;
-        blendedRates[code] = blendedEgpRate / targetEgpPrice;
-      }
-    });
-
-    const formattedBmMap = {};
-    for (const [code, arabicName] of Object.entries(banqueMisrNameMapping)) {
-      let entry = findEntryDeep(banqueMisrData, code, arabicName) || findEntryDeep(cbeData, code, arabicName);
-      
-      if (entry) {
-        let buyVal = entry.buy !== undefined ? entry.buy : (entry.purchase !== undefined ? entry.purchase : null);
-        let sellVal = entry.sell !== undefined ? entry.sell : (entry.sale !== undefined ? entry.sale : null);
-
-        const baseRate = blendedRates[code];
-        if (baseRate) {
-          if (buyVal === null || isNaN(Number(buyVal))) buyVal = baseRate * 0.995;
-          if (sellVal === null || isNaN(Number(sellVal))) sellVal = baseRate * 1.005;
-
-          formattedBmMap[code] = {
-            buy: Number(Number(buyVal).toFixed(4)),
-            sell: Number(Number(sellVal).toFixed(4))
-          };
-        }
-      }
-    }
-
-    console.log('Currencies data fetched successfully');
-    return {
-      rates: blendedRates,
-      banqueMisrRates: formattedBmMap
-    };
+    return JSON.parse(fs.readFileSync(RATES_FILE, 'utf8'));
   } catch (error) {
-    console.error('Error fetching currencies:', error);
-    return { rates: DEFAULT_GLOBAL_RATES, banqueMisrRates: {} };
+    return null;
   }
 };
+const validQuote = (entry) => {
+  const buy = entry?.buy ?? entry?.purchase;
+  const sell = entry?.sell ?? entry?.sale;
+  return positive(buy) && positive(sell) && Number(sell) >= Number(buy) ? { ...entry, buy: Number(buy), sell: Number(sell) } : null;
+};
+const bankQuotes = (input, now, stale = false) => {
+  const result = {};
+  for (const [code, entry] of Object.entries(input || {})) {
+    const quote = validQuote(entry);
+    if (/^[A-Z]{3}$/.test(code) && ['official', '3omlla', 'banklive'].includes(quote?.source) &&
+      validTime(quote.sourceUpdatedAt || quote.fetchedAt, now) && validTime(quote.fetchedAt, now)) {
+      result[code] = { ...quote, stale: stale || quote.stale === true };
+    }
+  }
+  return result;
+};
+const sourceTime = (data, now) => {
+  if (data?.time_last_update_unix !== undefined) {
+    const value = Number(data.time_last_update_unix) * 1000;
+    return Number.isFinite(value) && value > 0 && Number.isFinite(new Date(value).getTime()) ? new Date(value).toISOString() : null;
+  }
+  return data?.sourceUpdatedAt ?? data?.lastUpdated ?? data?.updatedAt ?? new Date(now).toISOString();
+};
+const validCachedCurrencies = (section, now) => section && validTime(section.lastUpdated, now) &&
+  section.rates && Number(section.rates.USD) === 1 && positive(section.rates.EGP) &&
+  Object.values(section.rates).every(positive);
 
-const fetchMetalsData = async () => {
-  try {
-    console.log('Fetching metals data...');
-    const [goldRes, silverRes] = await Promise.allSettled([
-      axios.get('https://api.gold-api.com/price/XAU', { timeout: 15000 }),
-      axios.get('https://api.gold-api.com/price/XAG', { timeout: 15000 })
-    ]);
+const fetchCurrenciesData = async ({ previousSnapshot = readSnapshot(), now = Date.now() } = {}) => {
+  console.log('Fetching currencies data...');
+  const checkedAt = new Date(now).toISOString();
+  const previous = previousSnapshot?.currencies;
+  const [globalRes, cbeRes, banqueMisrRes] = await Promise.allSettled([
+    axios.get('https://open.er-api.com/v6/latest/USD', { timeout: 15000 }),
+    fetchCBERates({ now }),
+    fetchBanqueMisrRates({ previousRates: previous?.banqueMisrRates || {}, now })
+  ]);
+  const globalData = globalRes.status === 'fulfilled' ? globalRes.value?.data : null;
+  const globalTime = sourceTime(globalData, now);
+  const rawGlobalRates = globalData?.rates;
+  const globalAvailable = rawGlobalRates && !Array.isArray(rawGlobalRates) &&
+    (!globalData.base_code || globalData.base_code === 'USD') && globalData.result !== 'error' &&
+    globalData.stale !== true && !['stale', 'unavailable', 'error'].includes(globalData.status) &&
+    Number(rawGlobalRates.USD) === 1 && positive(rawGlobalRates.EGP) && validTime(globalTime, now);
 
-    const goldPrice = goldRes.status === 'fulfilled' && goldRes.value.data?.price ? Number(goldRes.value.data.price) : 2600;
-    const silverPrice = silverRes.status === 'fulfilled' && silverRes.value.data?.price ? Number(silverRes.value.data.price) : 30;
+  // الدمج مع العملات الافتراضية لضمان عدم نقص أي عملة
+  const globalRates = globalAvailable ? Object.fromEntries(Object.entries(rawGlobalRates)
+    .filter(([code, value]) => /^[A-Z]{3}$/.test(code) && positive(value))
+    .map(([code, value]) => [code, Number(value)])) : {};
+  const cbeResponse = cbeRes.status === 'fulfilled' ? cbeRes.value : null;
+  const cbeTime = cbeResponse?.sourceUpdatedAt;
+  const cbeRates = {};
+  if (cbeResponse && cbeResponse.status === 'ok' && validTime(cbeTime, now)) {
+    for (const [code, entry] of Object.entries(cbeResponse.rates || {})) {
+      const quote = validQuote(entry);
+      if (quote && /^[A-Z]{3}$/.test(code)) {
+        cbeRates[code] = { ...quote, sourceUpdatedAt: cbeTime };
+      }
+    }
+  }
+  const bankData = banqueMisrRes.status === 'fulfilled' ? banqueMisrRes.value : null;
+  const banqueMisrRates = {
+    ...bankQuotes(previous?.banqueMisrRates, now, true),
+    ...bankQuotes(bankData?.rates, now, bankData?.status === 'stale' || bankData?.status === 'unavailable')
+  };
+  const freshBankRates = Object.fromEntries(Object.entries(banqueMisrRates).filter(([, entry]) => !entry.stale));
+  const bankCount = Object.keys(banqueMisrRates).length;
+  const freshBankCount = Object.keys(freshBankRates).length;
+  const banqueMisrStatus = !bankCount ? 'unavailable' : !freshBankCount ? 'stale' :
+    freshBankCount < bankCount || bankData?.status === 'partial' ? 'partial' : 'ok';
+  const banqueMisrSources = bankData?.sources || {};
+  const sources = {
+    global: {
+      status: globalAvailable ? 'ok' : 'unavailable',
+      sourceUpdatedAt: globalData ? globalTime : previous?.sources?.global?.sourceUpdatedAt || null,
+      fetchedAt: globalAvailable ? checkedAt : previous?.sources?.global?.fetchedAt || null,
+      checkedAt
+    },
+    cbe: {
+      status: Object.keys(cbeRates).length ? 'ok' : 'unavailable',
+      sourceUpdatedAt: cbeResponse ? cbeTime : previous?.sources?.cbe?.sourceUpdatedAt || null,
+      fetchedAt: Object.keys(cbeRates).length ? checkedAt : previous?.sources?.cbe?.fetchedAt || null,
+      checkedAt
+    },
+    banqueMisr: { status: banqueMisrStatus, sources: banqueMisrSources }
+  };
+  const usdPrices = [];
+  const usedTimes = [];
+  if (globalAvailable) {
+    usdPrices.push(globalRates.EGP);
+    usedTimes.push(globalTime);
+  }
+  for (const quotes of [cbeRates, freshBankRates]) {
+    if (quotes.USD) {
+      usdPrices.push(average([quotes.USD.buy, quotes.USD.sell]));
+      usedTimes.push(quotes.USD.sourceUpdatedAt || quotes.USD.fetchedAt);
+    }
+  }
+  const details = { banqueMisrRates, banqueMisrStatus, banqueMisrSources, sources, checkedAt };
+  if (!usdPrices.length) {
+    if (!validCachedCurrencies(previous, now)) throw new Error('No usable currency sources or recent validated snapshot');
+    return { ...previous, ...details, rates: { ...previous.rates }, lastUpdated: previous.lastUpdated, status: 'stale' };
+  }
+  const egp = average(usdPrices);
+  const rates = { USD: 1, EGP: egp };
+  const codes = new Set([...Object.keys(globalRates), ...Object.keys(cbeRates), ...Object.keys(freshBankRates)]);
+  for (const code of codes) {
+    if (code === 'USD' || code === 'EGP') continue;
+    const prices = [];
+    if (globalRates[code]) {
+      const price = globalRates.EGP / globalRates[code];
+      if (positive(price)) prices.push(price);
+    }
+    for (const quotes of [cbeRates, freshBankRates]) {
+      if (quotes[code]) {
+        prices.push(average([quotes[code].buy, quotes[code].sell]));
+        usedTimes.push(quotes[code].sourceUpdatedAt || quotes[code].fetchedAt);
+      }
+    }
+    if (prices.length && positive(egp / average(prices))) rates[code] = egp / average(prices);
+  }
+  console.log('Currencies data fetched successfully');
+  return {
+    rates, ...details, globalRates,
+    lastUpdated: oldestTime(usedTimes),
+    status: globalAvailable && sources.cbe.status === 'ok' && banqueMisrStatus === 'ok' ? 'ok' : 'partial'
+  };
+};
 
-    console.log('Metals data fetched successfully');
-    return {
-      goldData: { price: goldPrice, data: { price: goldPrice } },
-      silverData: { price: silverPrice, data: { price: silverPrice } }
-    };
-  } catch (error) {
-    console.error('Error fetching metals:', error);
-    return {
-      goldData: { price: 2600, data: { price: 2600 } },
-      silverData: { price: 30, data: { price: 30 } }
+const cachedMetals = (snapshot, now) => {
+  const metals = snapshot?.metals;
+  if (!metals || !validTime(metals.lastUpdated, now)) return null;
+  const gold = metals.goldData;
+  const silver = metals.silverData;
+  if (!gold && !silver) return null;
+  if (gold && !['price_gram_24k', 'price_gram_21k', 'price_gram_18k', 'price_ounce'].every((key) => positive(gold[key]))) return null;
+  if (silver && !['price_gram', 'price_ounce'].every((key) => positive(silver[key]))) return null;
+  return { ...metals, status: 'stale' };
+};
+
+const fetchMetalsData = async ({ previousSnapshot = readSnapshot(), now = Date.now() } = {}) => {
+  console.log('Fetching metals data...');
+  const checkedAt = new Date(now).toISOString();
+  const [goldRes, silverRes] = await Promise.allSettled([
+    axios.get('https://api.gold-api.com/price/XAU', { timeout: 15000 }),
+    axios.get('https://api.gold-api.com/price/XAG', { timeout: 15000 })
+  ]);
+  const prices = {};
+  const times = [];
+  const sources = {};
+  for (const [name, response] of [['gold', goldRes], ['silver', silverRes]]) {
+    const data = response.status === 'fulfilled' ? response.value?.data : null;
+    const timestamp = sourceTime(data, now);
+    const available = data && positive(data.price) && positive(Number(data.price) / 31.1035 * 0.75) &&
+      validTime(timestamp, now) && data.stale !== true && !['stale', 'unavailable', 'error'].includes(data.status);
+    sources[name] = { status: available ? 'ok' : 'unavailable', sourceUpdatedAt: data ? timestamp : null, fetchedAt: checkedAt };
+    if (available) {
+      prices[name] = Number(data.price);
+      times.push(timestamp);
+    }
+  }
+  const cached = cachedMetals(previousSnapshot, now);
+  if (!Object.keys(prices).length) {
+    if (cached) return cached;
+    throw new Error('No usable metal sources or recent validated snapshot');
+  }
+
+  // هيكلة بيانات المعادن بخصائص مكتملة يسهل قراءتها من التطبيق
+  const structuredMetals = { lastUpdated: oldestTime(times), status: prices.gold && prices.silver ? 'ok' : 'partial', sources };
+  if (prices.gold) {
+    const gram24USD = prices.gold / 31.1035;
+    structuredMetals.goldData = {
+      price_gram_24k: gram24USD,
+      price_gram_21k: gram24USD * (21 / 24),
+      price_gram_18k: gram24USD * (18 / 24),
+      price_ounce: prices.gold,
+      price: prices.gold,
+      data: { price: prices.gold }
     };
   }
+  if (prices.silver) {
+    structuredMetals.silverData = { price_gram: prices.silver / 31.1035, price_ounce: prices.silver, price: prices.silver, data: { price: prices.silver } };
+  }
+  for (const [name, key] of [['gold', 'goldData'], ['silver', 'silverData']]) {
+    if (!structuredMetals[key] && cached?.[key]) {
+      structuredMetals[key] = { ...cached[key], stale: true };
+      sources[name] = { ...sources[name], sourceUpdatedAt: cached.lastUpdated, fetchedAt: cached.sources?.[name]?.fetchedAt || null };
+      times.push(cached.lastUpdated);
+    }
+  }
+  structuredMetals.lastUpdated = oldestTime(times);
+  console.log('Metals data fetched successfully');
+  return structuredMetals;
 };
 
 const saveData = (data) => {
   try {
     fs.writeFileSync(RATES_FILE, JSON.stringify(data, null, 2), 'utf8');
     console.log('Data saved to rates.json');
-    
     const metadata = {
-      lastCurrenciesUpdate: new Date().toISOString(),
-      lastMetalsUpdate: new Date().toISOString(),
-      lastFullUpdate: new Date().toISOString(),
-      status: 'success',
+      lastCurrenciesUpdate: data.currencies.lastUpdated,
+      lastMetalsUpdate: data.metals?.lastUpdated || null,
+      lastFullUpdate: data.lastUpdated,
+      checkedAt: data.checkedAt,
+      status: data.status,
       version: '1.0.0'
     };
     fs.writeFileSync(METADATA_FILE, JSON.stringify(metadata, null, 2), 'utf8');
     console.log('Metadata updated');
-    
     return true;
   } catch (error) {
     console.error('Error saving data:', error);
-    return false;
+    throw error;
   }
 };
 
-const main = async () => {
+const main = async ({ previousSnapshot = readSnapshot(), now = Date.now() } = {}) => {
   try {
     console.log('Starting data fetcher...');
     console.log('================================');
-    
     const [currenciesData, metalsData] = await Promise.allSettled([
-      fetchCurrenciesData(),
-      fetchMetalsData()
+      fetchCurrenciesData({ previousSnapshot, now }),
+      fetchMetalsData({ previousSnapshot, now })
     ]);
-
-    const finalCurrencies = currenciesData.status === 'fulfilled' ? currenciesData.value : { rates: DEFAULT_GLOBAL_RATES, banqueMisrRates: {} };
-    const finalMetals = metalsData.status === 'fulfilled' ? metalsData.value : { goldData: { price: 2600 }, silverData: { price: 30 } };
-
-    let goldOunceUSD = 2600;
-    let silverOunceUSD = 30;
-    
-    if (finalMetals.goldData && (finalMetals.goldData.price || finalMetals.goldData.data?.price)) {
-      goldOunceUSD = Number(finalMetals.goldData.price || finalMetals.goldData.data.price);
+    if (currenciesData.status !== 'fulfilled') throw currenciesData.reason;
+    const finalCurrencies = currenciesData.value;
+    const finalMetals = metalsData.status === 'fulfilled' ? metalsData.value : null;
+    const calculatedRates = {};
+    if (finalMetals?.goldData) {
+      calculatedRates.XAU_24 = finalMetals.goldData.price_gram_24k;
+      calculatedRates.XAU_21 = finalMetals.goldData.price_gram_21k;
+      calculatedRates.XAU_18 = finalMetals.goldData.price_gram_18k;
     }
-    if (finalMetals.silverData && (finalMetals.silverData.price || finalMetals.silverData.data?.price)) {
-      silverOunceUSD = Number(finalMetals.silverData.price || finalMetals.silverData.data.price);
+    if (finalMetals?.silverData) calculatedRates.XAG_GRAM = finalMetals.silverData.price_gram;
+    if (finalCurrencies.status !== 'stale' && finalMetals?.status === 'ok') {
+      Object.assign(finalCurrencies.rates, calculatedRates);
     }
-
-    const gram24USD = goldOunceUSD / 31.1035;
-    const gram21USD = gram24USD * (21 / 24);
-    const gram18USD = gram24USD * (18 / 24);
-    const silverGramUSD = silverOunceUSD / 31.1035;
-
-    finalCurrencies.rates['XAU_24'] = gram24USD;
-    finalCurrencies.rates['XAU_21'] = gram21USD;
-    finalCurrencies.rates['XAU_18'] = gram18USD;
-    finalCurrencies.rates['XAG_GRAM'] = silverGramUSD;
-
-    // هيكلة بيانات المعادن بخصائص مكتملة يسهل قراءتها من التطبيق
-    const structuredMetals = {
-      goldData: {
-        price_gram_24k: gram24USD,
-        price_gram_21k: gram21USD,
-        price_gram_18k: gram18USD,
-        price_ounce: goldOunceUSD
-      },
-      silverData: {
-        price_gram: silverGramUSD,
-        price_ounce: silverOunceUSD
-      }
-    };
-
+    const status = finalCurrencies.status === 'stale' ? 'stale' :
+      finalCurrencies.status === 'ok' && finalMetals?.status === 'ok' ? 'success' : 'partial';
     const finalData = {
       currencies: finalCurrencies,
-      metals: structuredMetals,
-      calculatedRates: {
-        XAU_24: gram24USD,
-        XAU_21: gram21USD,
-        XAU_18: gram18USD,
-        XAG_GRAM: silverGramUSD
-      },
-      lastUpdated: new Date().toISOString(),
-      status: 'success'
+      ...(finalMetals ? { metals: finalMetals } : {}),
+      calculatedRates,
+      lastUpdated: oldestTime([finalCurrencies.lastUpdated, ...(finalMetals ? [finalMetals.lastUpdated] : [])]),
+      checkedAt: new Date(now).toISOString(),
+      status
     };
-
-    const saved = saveData(finalData);
-    
-    if (saved) {
-      console.log('================================');
-      console.log('✅ Data fetch completed successfully!');
-      console.log(`Last updated: ${finalData.lastUpdated}`);
-      console.log('================================');
-    } else {
-      console.log('❌ Failed to save data');
-    }
-    
+    saveData(finalData);
+    console.log('================================');
+    console.log(`Last updated: ${finalData.lastUpdated}`);
+    console.log('================================');
+    return finalData;
   } catch (error) {
     console.error('================================');
-    console.error('❌ Fatal error in data fetcher:', error);
+    console.error('Error in data fetcher:', error);
     console.error('================================');
-    
-    try {
-      const metadata = {
-        lastCurrenciesUpdate: null,
-        lastMetalsUpdate: null,
-        lastFullUpdate: new Date().toISOString(),
-        status: 'error',
-        error: error.message,
-        version: '1.0.0'
-      };
-      fs.writeFileSync(METADATA_FILE, JSON.stringify(metadata, null, 2), 'utf8');
-    } catch (metadataError) {
-      console.error('Failed to save error metadata:', metadataError);
-    }
-    
-    process.exit(1);
+    throw error;
   }
 };
 
 if (require.main === module) {
-  main();
+  main().catch(() => { process.exitCode = 1; });
 }
 
 module.exports = { main, fetchCurrenciesData, fetchMetalsData };

@@ -10,6 +10,7 @@ import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { BaseCurrencyContext } from '../context/BaseCurrencyContext';
 import { SettingsContext } from '../context/SettingsContext';
+import { RatesContext } from '../context/RatesContext';
 import { useTheme } from '../hooks/useTheme';
 import { getMetalsData } from '../services/FinalMetalData';
 import ConnectionIndicator from '../components/layout/ConnectionIndicator';
@@ -66,34 +67,51 @@ export default function MetalsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('');
+  const [fetchError, setFetchError] = useState(false);
+  const sharedRates = useContext(RatesContext);
+  const requestIdRef = useRef(0);
+  const dataCurrencyRef = useRef(baseCurrency);
 
   const loadMetals = useCallback(async (isManual = false) => {
-    let isActive = true;
+    const requestId = ++requestIdRef.current;
+    setRefreshing(isManual);
+    setLoading(true);
+    setFetchError(false);
+    if (dataCurrencyRef.current !== baseCurrency) {
+      dataCurrencyRef.current = baseCurrency;
+      setMetalsData({});
+      setLastUpdated('');
+    }
     if (isManual) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       // دائماً false، لا forceRefresh للالتزام التام باستراتيجية الكاش (15 دقيقة للمعادن)
       const data = await getMetalsData(baseCurrency, {}, false);
-      if (isActive) {
-        setMetalsData(data || {});
-        setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      if (requestId !== requestIdRef.current) return;
+      if (Number.isFinite(data?.XAU_24?.price) && data.XAU_24.price > 0) {
+        setMetalsData(data);
+        const updated = data._lastUpdated;
+        if (updated && Number.isFinite(new Date(updated).getTime())) {
+          setLastUpdated(new Date(updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        }
+        setFetchError(Boolean(data._isFallback));
+      } else {
+        setFetchError(true);
       }
     } catch (error) {
       console.error('Error loading metals:', error);
+      if (requestId === requestIdRef.current) setFetchError(true);
     } finally {
-      if (isActive) {
+      if (requestId === requestIdRef.current) {
         setLoading(false);
         setRefreshing(false);
       }
     }
-    return () => { isActive = false; };
   }, [baseCurrency]);
 
   useEffect(() => {
-    const cleanup = loadMetals();
-    return () => {
-      if (typeof cleanup === 'function') cleanup();
-    };
-  }, [loadMetals]);
+    loadMetals();
+    return () => { requestIdRef.current += 1; };
+  }, [loadMetals, sharedRates?.dataVersion]);
 
   const shopDollar = metalsData['SHOP_USD']?.price || 0;
   const bankDollar = metalsData['BANK_USD']?.price || 0;
@@ -116,6 +134,19 @@ export default function MetalsScreen() {
         <MetalsSkeleton />
       </NeoBackground>
     );
+  }
+
+  if (!metalsData.XAU_24?.price) {
+    return <NeoBackground>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+        <Text accessibilityRole="alert" style={{ color: colors.text, textAlign: 'center', marginBottom: 16 }}>
+          {t('metals.load_failed', { defaultValue: 'تعذر تحميل أسعار المعادن. تحقق من الإنترنت ثم أعد المحاولة.' })}
+        </Text>
+        <TouchableOpacity accessibilityRole="button" onPress={() => loadMetals(true)} disabled={loading} style={{ padding: 14 }}>
+          <Text style={{ color: '#387c9f', fontWeight: 'bold' }}>{t('common.retry', { defaultValue: 'إعادة المحاولة' })}</Text>
+        </TouchableOpacity>
+      </View>
+    </NeoBackground>;
   }
 
   const isSmallDevice = screenWidth < 375;
@@ -173,6 +204,9 @@ export default function MetalsScreen() {
           showsVerticalScrollIndicator={false}
         >
           {renderHeader()}
+          {fetchError && <Text accessibilityRole="alert" style={{ color: colors.text, textAlign: 'center', padding: 12 }}>
+            {t('rates.stale_prices', { defaultValue: 'تعذر تحديث الأسعار. المعروض آخر بيانات محفوظة وليس أسعاراً مباشرة.' })}
+          </Text>}
 
           <View style={styles.insightGrid}>
             <View style={[styles.miniInsightCard, { width: '48.5%', backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.75)', borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)', borderWidth: 1.5 }]}>

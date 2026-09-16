@@ -129,6 +129,10 @@
   "rates": {
     "title": "أسعار الصرف",
     "live_rates": "الأسعار المباشرة",
+    "bank_egp": "بنك مصر · EGP",
+    "bank_transfer": "تحويلات",
+    "bank_cached": "بيانات محفوظة",
+    "bank_unavailable": "غير متاح بالبنك",
     "search_placeholder": "ابحث عن عملة أو رمز...",
     "base_currency": "العملة الأساسية",
     "base_currency_label": "العملة الأساسية: EGP",

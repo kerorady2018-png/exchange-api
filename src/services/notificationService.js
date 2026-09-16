@@ -54,7 +54,6 @@ export async function initializeNotifications() {
     }),
   });
 
-  await requestNotificationPermissions();
   initialized = true;
 }
 

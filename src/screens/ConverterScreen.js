@@ -22,6 +22,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import errorHandler from '../services/errorHandler';
 import { Ionicons } from '@expo/vector-icons';
 import { SettingsContext } from '../context/SettingsContext';
+import { RatesContext } from '../context/RatesContext';
 import { useTheme } from '../hooks/useTheme';
 import { currencyInfo } from '../constants/currencyData';
 import ConnectionIndicator from '../components/layout/ConnectionIndicator';
@@ -44,6 +45,16 @@ const ConverterScreen = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('');
   const [fetchError, setFetchError] = useState(false);
+  const sharedRates = useContext(RatesContext);
+
+  useEffect(() => {
+    if (sharedRates?.rates && Object.keys(sharedRates.rates).length > 1) {
+      setRates(sharedRates.rates);
+      setLastUpdated(sharedRates.lastUpdated);
+      setFetchError(Boolean(sharedRates.error));
+      setIsLoading(false);
+    }
+  }, [sharedRates?.rates, sharedRates?.lastUpdated, sharedRates?.error]);
 
   const [fromCurrency, setFromCurrency] = useState('USD');
   const [toCurrency, setToCurrency] = useState('EGP');
@@ -162,13 +173,14 @@ const ConverterScreen = () => {
 
       if (data && data.rates && Object.keys(data.rates).length > 0) {
         setRates(data.rates);
+        setFetchError(Boolean(data._isFallback));
 
         // جلب وقت التحديث من التخزين المحلي
-        const cachedTimeStr = await AsyncStorage.getItem(CACHE_KEYS.CURRENCIES_TIME);
+        const cachedTimeStr = data._lastUpdated;
         if (!isMountedRef.current) return;
 
-        if (cachedTimeStr) {
-          const dateObj = new Date(parseInt(cachedTimeStr, 10));
+        if (cachedTimeStr && Number.isFinite(new Date(cachedTimeStr).getTime())) {
+          const dateObj = new Date(cachedTimeStr);
           setLastUpdated(dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
         } else {
           setLastUpdated('');

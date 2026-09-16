@@ -1,90 +1,76 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { readCachedValue, writeCachedValue, validRates, validBankRates } from '../api/apiConfig';
 import { fetchCurrenciesFromApi } from './currenciesCore';
-import { CACHE_KEYS, CACHE_DURATIONS } from '../constants/cacheKeys';
+import { CACHE_KEYS } from '../constants/cacheKeys';
 
-const INJECTED_BM_RATES = {
-  "USD": { "buy": 50.23, "sell": 50.33 },
-  "EUR": { "buy": 54.45, "sell": 54.70 },
-  "GBP": { "buy": 64.80, "sell": 65.10 },
-  "SAR": { "buy": 13.38, "sell": 13.42 },
-  "AED": { "buy": 13.67, "sell": 13.71 },
-  "KWD": { "buy": 163.50, "sell": 164.20 },
-  "QAR": { "buy": 13.78, "sell": 13.82 },
-  "BHD": { "buy": 133.20, "sell": 133.60 },
-  "OMR": { "buy": 130.40, "sell": 130.80 },
-  "JOD": { "buy": 70.80, "sell": 71.20 }
-};
+let lastCurrenciesData = null;
 
 /**
  * دالة الحصول على بيانات العملات مع التحكم في قراءة الملف الثابت
  */
 export async function getCurrenciesData(forceRefresh = false) {
-  const nowTime = Date.now();
-  const lastFetchTimeStr = await AsyncStorage.getItem(CACHE_KEYS.CURRENCIES_TIME);
-  const lastFetchTime = lastFetchTimeStr ? parseInt(lastFetchTimeStr, 10) : 0;
+  const lastFetchTime = await readCachedValue(CACHE_KEYS.CURRENCIES_TIME);
 
   // التحقق من الفترة الزمنية لقراءة الملف الثابت
-  const lastStaticFileRequest = await AsyncStorage.getItem(CACHE_KEYS.LAST_STATIC_FILE_REQUEST);
-  const timeSinceStaticRequest = lastStaticFileRequest ? nowTime - parseInt(lastStaticFileRequest) : Infinity;
-
   // أولاً: حاول استعادة الكاش المحلي
-  const cachedRates = await AsyncStorage.getItem(CACHE_KEYS.CURRENCIES);
-  const cachedBm = await AsyncStorage.getItem(CACHE_KEYS.BM_RATES);
-
-  let currentBm = cachedBm ? JSON.parse(cachedBm) : INJECTED_BM_RATES;
+  const [cachedRates, cachedBm] = await Promise.all([
+    readCachedValue(CACHE_KEYS.CURRENCIES),
+    readCachedValue(CACHE_KEYS.BM_RATES),
+  ]);
+  let currentBm = validBankRates(lastCurrenciesData?.banqueMisrRates || cachedBm);
 
   // التحقق من صلاحية الكاش (يجب ألا يكون فارغاً)
-  let validCachedRates = null;
-  if (cachedRates) {
-    try {
-      const parsed = JSON.parse(cachedRates);
-      if (parsed && Object.keys(parsed).length > 0) {
-        validCachedRates = parsed;
-      }
-    } catch (e) { /* ignore */ }
-  }
+  let validCachedRates = {};
+  try {
+    validCachedRates = validRates(lastCurrenciesData?.rates || cachedRates);
+  } catch (e) { /* ignore */ }
 
   // استخدم الكاش فقط إذا كان صالحاً وضمن فترة التهدئة
-  if (!forceRefresh && timeSinceStaticRequest < CACHE_DURATIONS.STATIC_FILE_READ_COOLDOWN) {
-    if (validCachedRates) {
-      return {
-        rates: validCachedRates,
-        banqueMisrRates: (currentBm && Object.keys(currentBm).length > 0) ? currentBm : INJECTED_BM_RATES,
-        _fromCache: true
-      };
-    }
-  }
-
   // محاولة جلب بيانات جديدة من السيرفر
   try {
-    const freshData = await fetchCurrenciesFromApi();
-
-    if (freshData && freshData.rates && Object.keys(freshData.rates).length > 0) {
-      await AsyncStorage.setItem(CACHE_KEYS.CURRENCIES, JSON.stringify(freshData.rates));
-      await AsyncStorage.setItem(CACHE_KEYS.CURRENCIES_TIME, nowTime.toString());
-      await AsyncStorage.setItem(CACHE_KEYS.LAST_STATIC_FILE_REQUEST, nowTime.toString());
+    const freshData = await fetchCurrenciesFromApi(forceRefresh);
+    const rates = validRates(freshData?.rates);
+    if (Object.keys(rates).length > 0) {
+      const freshBm = validBankRates(freshData.banqueMisrRates);
 
       // تأمين أسعار بنك مصر: إذا رجعت فارغة من السيرفر، لا تمسح الكاش
-      if (freshData.banqueMisrRates && Object.keys(freshData.banqueMisrRates).length > 0) {
-        await AsyncStorage.setItem(CACHE_KEYS.BM_RATES, JSON.stringify(freshData.banqueMisrRates));
-        currentBm = freshData.banqueMisrRates;
+      const verifiedCachedBm = Object.fromEntries(Object.entries(currentBm)
+        .filter(([, quote]) => quote.fetchedAt && ['official', '3omlla', 'banklive'].includes(quote.source))
+        .map(([code, quote]) => [code, { ...quote, stale: true }]));
+      if (freshData._bankSnapshotAuthoritative) {
+        currentBm = { ...verifiedCachedBm, ...freshBm };
+      } else if (Object.keys(freshBm).length > 0) {
+        currentBm = freshBm;
       }
-
-      return {
+      const usingCachedBm = !Object.keys(freshBm).length && Object.keys(currentBm).length > 0;
+      if (freshData._bankSnapshotAuthoritative || Object.keys(freshBm).length > 0) {
+        await writeCachedValue(CACHE_KEYS.BM_RATES, currentBm);
+      }
+      const result = {
         ...freshData,
-        banqueMisrRates: (currentBm && Object.keys(currentBm).length > 0) ? currentBm : INJECTED_BM_RATES,
-        _fromCache: false,
-        _lastUpdated: nowTime
+        rates,
+        banqueMisrRates: currentBm,
+        ...(usingCachedBm ? { _bmIsFallback: true } : {}),
       };
+      lastCurrenciesData = result;
+      if (!freshData._isFallback) {
+        await Promise.all([
+          writeCachedValue(CACHE_KEYS.CURRENCIES, rates),
+          writeCachedValue(CACHE_KEYS.CURRENCIES_TIME, freshData._lastUpdated ?? null),
+        ]);
+      }
+      return result;
     }
     throw new Error('Invalid data from API');
   } catch (error) {
-    console.warn('API Fetch failed or empty, using fallback cache and injected data');
+    console.warn('API Fetch failed or empty, using validated fallback cache');
     return {
-      rates: validCachedRates || {},
-      banqueMisrRates: (currentBm && Object.keys(currentBm).length > 0) ? currentBm : INJECTED_BM_RATES,
+      ...lastCurrenciesData,
+      rates: validCachedRates,
+      banqueMisrRates: currentBm,
+      _lastUpdated: lastCurrenciesData?._lastUpdated ?? (Number.isFinite(lastFetchTime) ? lastFetchTime : null),
+      _fromCache: Object.keys(validCachedRates).length > 0,
       _isFallback: true,
-      _offlineMode: true
+      _offlineMode: true,
     };
   }
 }
@@ -96,7 +82,8 @@ export async function getStructuredCurrencyDatabase() {
   const data = await getCurrenciesData();
   
   const structuredDatabase = {
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: data._lastUpdated ? new Date(data._lastUpdated).toISOString() : null,
+    _isFallback: !!data._isFallback,
     baseCurrency: "USD",
     currencies: {}
   };

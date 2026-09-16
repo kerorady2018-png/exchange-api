@@ -1,6 +1,4 @@
-import axios from 'axios';
-import { apiClient } from '../api/apiConfig';
-import { withRetry } from '../utils/networkUtils';
+import { fetchStaticSnapshot, validRates, validBankRates } from '../api/apiConfig';
 
 /**
  * جلب البيانات الخام من endpoint الملف الثابت api/static-data فقط
@@ -8,16 +6,14 @@ import { withRetry } from '../utils/networkUtils';
 export async function fetchRawMetalsApiData() {
   try {
     // قراءة من endpoint الملف الثابت api/static-data فقط
-    const response = await withRetry(() => apiClient.get('/api/static-data', {
+    const { payload, ...metadata } = await fetchStaticSnapshot({
       timeout: 10000 // 10 ثوانٍ للسماح بشبكات الجوال البطيئة
-    }));
-
-    const payload = response.data?.data || response.data;
+    });
 
     if (payload) {
       const metals = payload.metals || payload.data?.metals || {};
-      const calculatedRates = payload.calculatedRates || payload.currencies?.rates || payload.data?.currencies?.rates || {};
-      const currencyRates = payload.currencies?.rates || payload.rates || payload.data?.currencies?.rates || payload.data?.rates || {};
+      const calculatedRates = validRates(payload.calculatedRates || payload.currencies?.rates);
+      const currencyRates = validRates(payload.currencies?.rates || payload.rates);
 
       // بناء بيانات الذهب من الهياكل المختلفة الممكنة
       let goldData = metals.goldData || metals.gold || payload.goldData;
@@ -40,12 +36,16 @@ export async function fetchRawMetalsApiData() {
         };
       }
 
+      const sourceTime = metals.lastUpdated === undefined ? metadata._lastUpdated : Date.parse(metals.lastUpdated);
       return {
+        ...metadata,
+        _lastUpdated: Number.isFinite(sourceTime) ? sourceTime : null,
+        _isFallback: !!metadata._isFallback || ['stale', 'partial', 'unavailable'].includes(metals.status) || payload.currencies?.status === 'stale',
         goldData: goldData || null,
         silverData: silverData || null,
         cbeData: {},
         globalRates: currencyRates || {},
-        currenciesData: { rates: currencyRates, banqueMisrRates: payload.currencies?.banqueMisrRates || {} }
+        currenciesData: { rates: currencyRates, banqueMisrRates: validBankRates(payload.currencies?.banqueMisrRates || payload.banqueMisrRates) }
       };
     }
 

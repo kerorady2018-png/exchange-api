@@ -24,11 +24,9 @@ const RootNavigator = () => {
       try {
         const onboardingCompleted = await AsyncStorage.getItem('@onboarding_completed');
         // تهيئة الإشعارات عند بدء التطبيق
-        try {
-          await initializeNotifications();
-        } catch (notifError) {
+        initializeNotifications().catch(notifError => {
           console.warn('Notifications initialization failed:', notifError);
-        }
+        });
 
         if (isMounted) {
           if (!onboardingCompleted) setShowOnboarding(true);

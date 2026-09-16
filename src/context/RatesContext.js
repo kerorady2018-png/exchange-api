@@ -1,21 +1,34 @@
-import React, { createContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useRef } from 'react';
+import { AppState } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 import { getCurrenciesData } from '../services/currenciesCoreData';
+import { validBankRates } from '../api/apiConfig';
 import { checkAndTriggerPriceAlerts } from '../services/priceAlertChecker';
 import { CACHE_KEYS, CACHE_DURATIONS } from '../constants/cacheKeys';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const RatesContext = createContext();
 
+const hasRates = value => value && !Array.isArray(value) &&
+  Number.isFinite(value.USD) && value.USD > 0 &&
+  Object.entries(value).some(([key, rate]) => key !== 'USD' && Number.isFinite(rate) && rate > 0);
+
 export const RatesProvider = ({ children }) => {
   const [rates, setRates] = useState({});
   const [banqueMisrRates, setBanqueMisrRates] = useState({});
+  const [banqueMisrIsFallback, setBanqueMisrIsFallback] = useState(true);
   const [loadingRates, setLoadingRates] = useState(true);
   const [lastUpdated, setLastUpdated] = useState('');
+  const [error, setError] = useState(null);
+  const [dataVersion, setDataVersion] = useState(0);
+  const ratesRef = useRef({});
+  const requestRef = useRef(null);
+  const mountedRef = useRef(true);
 
   // دالة لجلب الوقت الحالي
-  const getCurrentTime = () => {
-    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  };
+  const getCurrentTime = timestamp => new Date(timestamp).toLocaleTimeString([], {
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
 
   // محاولة تحميل الكاش فوراً عند بدء التشغيل لضمان استمرارية العرض
   useEffect(() => {
@@ -23,8 +36,12 @@ export const RatesProvider = ({ children }) => {
       try {
         const cachedRates = await AsyncStorage.getItem(CACHE_KEYS.CURRENCIES);
         const cachedBm = await AsyncStorage.getItem(CACHE_KEYS.BM_RATES);
-        if (cachedRates) setRates(JSON.parse(cachedRates));
-        if (cachedBm) setBanqueMisrRates(JSON.parse(cachedBm));
+        const parsed = cachedRates ? JSON.parse(cachedRates) : null;
+        if (mountedRef.current && !hasRates(ratesRef.current) && hasRates(parsed)) {
+          ratesRef.current = parsed;
+          setRates(parsed);
+          if (cachedBm) setBanqueMisrRates(validBankRates(JSON.parse(cachedBm)));
+        }
       } catch (e) {
         console.warn('Failed to load initial cache', e);
       }
@@ -32,74 +49,103 @@ export const RatesProvider = ({ children }) => {
     loadInitialCache();
   }, []);
 
-  const fetchGlobalRates = useCallback(async (isManualRefresh = false) => {
-    const NOW = Date.now();
-    const THIRTY_MINUTES = CACHE_DURATIONS.RATES_CONTEXT;
+  const fetchGlobalRates = useCallback((isManualRefresh = false) => {
+    if (requestRef.current) return requestRef.current;
+    const request = (async () => {
+      const NOW = Date.now();
+      const THIRTY_MINUTES = CACHE_DURATIONS.RATES_CONTEXT;
 
-    try {
-      if (isManualRefresh) setLoadingRates(true);
-
-      const lastFetchTime = await AsyncStorage.getItem(CACHE_KEYS.CURRENCIES_TIME);
-
-      // استراتيجية ذكية: إذا كان التحديث يدوياً وضمن الـ 30 دقيقة، نستخدم الخداع البصري للحفاظ على الـ API
-      if (isManualRefresh && lastFetchTime && (NOW - parseInt(lastFetchTime) < THIRTY_MINUTES)) {
-        console.log('Smart Strategy: Performing optimistic update');
-
-        // جلب البيانات من الكاش المحلي فقط لضمان استمرارية العرض
-        const data = await getCurrenciesData(false);
-        if (data) {
-          if (data.rates) setRates(data.rates);
-          if (data.banqueMisrRates) setBanqueMisrRates(data.banqueMisrRates);
+      try {
+        if (mountedRef.current) {
+          setLoadingRates(true);
+          setError(null);
         }
 
-        await new Promise(resolve => setTimeout(resolve, 800));
-        setLastUpdated(getCurrentTime());
-        setLoadingRates(false);
-        return;
-      }
+        const lastFetchTime = await AsyncStorage.getItem(CACHE_KEYS.CURRENCIES_TIME).catch(() => null);
 
-      // الطلب الحقيقي (يحدث فقط كل 30 دقيقة)
-      const data = await getCurrenciesData(isManualRefresh);
-      
-      if (data) {
-        const previousRates = rates;
-        if (data.rates) {
+        // استراتيجية ذكية: إذا كان التحديث يدوياً وضمن الـ 30 دقيقة، نستخدم الخداع البصري للحفاظ على الـ API
+        if (isManualRefresh && lastFetchTime && (NOW - parseInt(lastFetchTime) < THIRTY_MINUTES)) {
+          // جلب البيانات من الكاش المحلي فقط لضمان استمرارية العرض
+          isManualRefresh = false;
+        }
+
+        // الطلب الحقيقي (يحدث فقط كل 30 دقيقة)
+        const data = await getCurrenciesData(isManualRefresh);
+
+        if (!mountedRef.current) return;
+        if (hasRates(data?.rates)) {
+          const previousRates = ratesRef.current;
+          ratesRef.current = data.rates;
           setRates(data.rates);
+          if (!data._isFallback) setDataVersion(value => value + 1);
           // فحص تنبيهات الأسعار بعد تحديث الأسعار
-          try {
-            const settingsStr = await AsyncStorage.getItem('@notification_settings');
-            const settings = settingsStr ? JSON.parse(settingsStr) : null;
-            if (settings && settings.enabled) {
-              await checkAndTriggerPriceAlerts(data.rates, previousRates, settings);
-            }
-          } catch (alertError) {
-            console.warn('Price alert check failed:', alertError);
+          if (hasRates(previousRates) && !data._isFallback && !data._fromCache) {
+            (async () => {
+              try {
+                const settingsStr = await AsyncStorage.getItem('@notification_settings');
+                const settings = settingsStr ? JSON.parse(settingsStr) : null;
+                if (settings?.enabled) {
+                  await checkAndTriggerPriceAlerts(data.rates, previousRates, settings);
+                }
+              } catch (alertError) {
+                console.warn('Price alert check failed:', alertError);
+              }
+            })();
           }
+          // تحديث banqueMisrRates فقط إذا كانت تحتوي على بيانات
+          if (data.banqueMisrRates) {
+            setBanqueMisrRates(data.banqueMisrRates);
+            setBanqueMisrIsFallback(!!data._bmIsFallback || !!data._offlineMode);
+          }
+          const updated = data._lastUpdated;
+          if (updated && Number.isFinite(new Date(updated).getTime())) {
+            setLastUpdated(getCurrentTime(updated));
+          }
+          if (data._isFallback) setError('unavailable');
+        } else {
+          setError('unavailable');
         }
-        // تحديث banqueMisrRates فقط إذا كانت تحتوي على بيانات
-        if (data.banqueMisrRates && Object.keys(data.banqueMisrRates).length > 0) {
-          setBanqueMisrRates(data.banqueMisrRates);
-        }
-        setLastUpdated(getCurrentTime());
+      } catch (error) {
+        console.error('Error in fetchGlobalRates:', error);
+        if (mountedRef.current) setError('unavailable');
+      } finally {
+        if (mountedRef.current) setLoadingRates(false);
       }
-    } catch (error) {
-      console.error('Error in fetchGlobalRates:', error);
-    } finally {
-      setLoadingRates(false);
-    }
-  }, [rates]);
+    })();
+    requestRef.current = request;
+    request.finally(() => { requestRef.current = null; });
+    return request;
+  }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     fetchGlobalRates(false);
+    let previousOnline;
+    const unsubscribe = NetInfo.addEventListener(state => {
+      const online = state.isConnected === true && state.isInternetReachable !== false;
+      if (online && previousOnline === false) fetchGlobalRates(false);
+      previousOnline = online;
+    });
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') fetchGlobalRates(false);
+    });
+    return () => {
+      mountedRef.current = false;
+      unsubscribe();
+      subscription.remove();
+    };
   }, [fetchGlobalRates]);
 
   return (
     <RatesContext.Provider value={{
       rates,
       banqueMisrRates,
+      banqueMisrIsFallback,
       loadingRates,
       lastUpdated,
-      refreshRates: () => fetchGlobalRates(true)
+      error,
+      dataVersion,
+      refreshRates: fetchGlobalRates
     }}>
       {children}
     </RatesContext.Provider>

@@ -3,7 +3,7 @@
  * تساعد في التعامل مع انقطاعات الإنترنت المؤقتة أو ضغط السيرفر بشكل احترافي.
  * تم تحسينها لتقليل البطء: محاولة واحدة فقط للسرعة
  */
-export const withRetry = async (fn, retries = 3, initialDelay = 1000) => {
+export const withRetry = async (fn, retries = 1, initialDelay = 1000) => {
   let lastError;
 
   for (let i = 0; i < retries; i++) {

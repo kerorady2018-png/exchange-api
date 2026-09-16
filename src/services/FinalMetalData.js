@@ -1,10 +1,15 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { readCachedValue, writeCachedValue, isPositivePrice } from '../api/apiConfig';
 import { fetchRawMetalsApiData } from './metalsCore';
 import { getCurrenciesData } from './currenciesCoreData';
 
-const METALS_CACHE_KEY = '@cached_metals_data_v3';
-const METALS_TIME_KEY = '@cached_metals_time_v3';
+const METALS_CACHE_KEY = '@cached_metals_data_v4';
+const metalsCache = new Map();
 const METALS_TTL = 15 * 60 * 1000; // 15 minutes TTL for metals data optimization
+
+function validAggregate(value) {
+  return value && isPositivePrice(value.XAU_24?.price) &&
+    isPositivePrice(value.XAU_OUNCE?.price) && isPositivePrice(value.XAG_GRAM?.price);
+}
 
 /**
  * المحرك الحسابي المطور - نسخة المطابقة الاحترافية للمنافسين (iSagha & DE)
@@ -38,8 +43,8 @@ function processMetalsData(rawApiData, currenciesData = {}, baseCurrency = 'EGP'
   }
 
   // إذا ظلت الأسعار 0، نستخدم null لضمان عدم عرض أرقام مضللة
-  if (!goldOunceUSD || isNaN(goldOunceUSD)) goldOunceUSD = null;
-  if (!silverOunceUSD || isNaN(silverOunceUSD)) silverOunceUSD = null;
+  if (!isPositivePrice(goldOunceUSD)) goldOunceUSD = null;
+  if (!isPositivePrice(silverOunceUSD)) silverOunceUSD = null;
 
   // 2. دمج الأسعار مع إعطاء الأولوية للأسعار الموحدة (Blended) لضمان التطابق مع شاشة العملات
   const globalRates = {
@@ -128,21 +133,19 @@ function processMetalsData(rawApiData, currenciesData = {}, baseCurrency = 'EGP'
 }
 
 export async function getMetalsData(baseCurrency = 'EGP', forexRates = {}, forceRefresh = false) {
-  const now = Date.now();
-  const lastFetchStr = await AsyncStorage.getItem(METALS_TIME_KEY);
-  const lastFetch = lastFetchStr ? parseInt(lastFetchStr, 10) : 0;
+  const currency = String(baseCurrency || 'EGP').toUpperCase();
+  const cacheKey = `${METALS_CACHE_KEY}:${currency}`;
+  let cached = metalsCache.get(currency);
 
   // 1. نظام الـ Cache الصارم للمعادن (15 دقيقة) - لا تستخدم كاش فارغ
-  if (!forceRefresh && lastFetch > 0 && (now - lastFetch < METALS_TTL)) {
-    const cached = await AsyncStorage.getItem(METALS_CACHE_KEY);
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (parsed && parsed.XAU_24 && parsed.XAU_24.price > 0) {
-          return parsed;
-        }
-      } catch (e) { /* continue to fetch */ }
-    }
+  if (!cached) {
+    try {
+      const parsed = await readCachedValue(cacheKey);
+      if (parsed?._baseCurrency === currency && validAggregate(parsed)) {
+        cached = parsed;
+        metalsCache.set(currency, parsed);
+      }
+    } catch (e) { /* continue to fetch */ }
   }
 
   try {
@@ -160,24 +163,32 @@ export async function getMetalsData(baseCurrency = 'EGP', forexRates = {}, force
     }
 
     // تمرير الأسعار الموحدة للمحرك الحسابي
-    const aggregated = processMetalsData(rawApiData, currenciesData, baseCurrency, forexRates);
-
-    await AsyncStorage.setItem(METALS_CACHE_KEY, JSON.stringify(aggregated));
-    await AsyncStorage.setItem(METALS_TIME_KEY, now.toString());
-    return aggregated;
+    const aggregated = processMetalsData(rawApiData, currenciesData, currency, forexRates);
+    if (!validAggregate(aggregated)) throw new Error('Invalid metal prices or conversion rate');
+    const isFallback = !!(rawApiData._isFallback || currenciesData._isFallback);
+    const result = {
+      ...aggregated,
+      _baseCurrency: currency,
+      _lastUpdated: rawApiData._lastUpdated ?? currenciesData._lastUpdated ?? null,
+      _fetchedAt: rawApiData._fetchedAt ?? null,
+      _fromCache: !!rawApiData._fromCache,
+      ...(isFallback ? { _isFallback: true, _offlineMode: true } : {}),
+    };
+    if (!isFallback) {
+      metalsCache.set(currency, result);
+      await writeCachedValue(cacheKey, result);
+    }
+    return result;
   } catch (error) {
     console.warn('Metals Fetch failed, entering Perpetual Cache Fallback:', error.message);
 
     // 3. Fallback: إذا فشل الاتصال، استخرج آخر بيانات معادن ناجحة
-    const cached = await AsyncStorage.getItem(METALS_CACHE_KEY);
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (parsed && parsed.XAU_24 && parsed.XAU_24.price > 0) {
-          return { ...parsed, _isFallback: true };
-        }
-      } catch (e) { /* ignore */ }
-    }
+    try {
+      const parsed = metalsCache.get(currency) || cached;
+      if (parsed?._baseCurrency === currency && validAggregate(parsed)) {
+        return { ...parsed, _fromCache: true, _isFallback: true, _offlineMode: true };
+      }
+    } catch (e) { /* ignore */ }
     return { _isFallback: true, _offlineMode: true };
   }
 }

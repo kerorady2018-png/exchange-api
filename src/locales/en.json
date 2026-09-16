@@ -129,6 +129,10 @@
   "rates": {
     "title": "Exchange Rates",
     "live_rates": "Live Rates",
+    "bank_egp": "Banque Misr · EGP",
+    "bank_transfer": "Transfers",
+    "bank_cached": "Saved quotes",
+    "bank_unavailable": "Not quoted by bank",
     "search_placeholder": "Search currency or symbol...",
     "base_currency": "Base Currency",
     "base_currency_label": "Base Currency: EGP",
