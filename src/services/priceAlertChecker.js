@@ -13,7 +13,11 @@ export async function checkAndTriggerPriceAlerts(newRates, previousRates, settin
 
   try {
     const storedOldRates = previousRates || {};
-    const thresholdValue = parseFloat(settings.priceThreshold) || 0.05;
+    // التأكد من ضبط النسبة بشكل صحيح؛ إذا كانت العتبة القادمة من الإعدادات القديمة صغيرة جداً ككسر عشري (أقل من 0.5)، نقوم بضربها في 100 لتصبح نسبة مئوية حقيقية وصحيحة
+    let thresholdValue = parseFloat(settings.priceThreshold) || 1.5;
+    if (thresholdValue < 0.5) {
+      thresholdValue = thresholdValue * 100;
+    }
     const selectedCurrencies = settings.selectedCurrencies || ['USD', 'EUR', 'GBP'];
 
     const now = Date.now();
@@ -59,6 +63,8 @@ export async function checkAndTriggerPriceAlerts(newRates, previousRates, settin
 function calculatePortfolioSummary(assets, rates, baseCurrency) {
   try {
     if (!assets || !Array.isArray(assets) || assets.length === 0) return null;
+    // صمام أمان سيرفر/تطبيق: إذا كانت قائمة الأسعار فارغة أو لا تحتوي إلا على عملة الأساس، نلغي الحساب فوراً لتجنب حساب خسائر وهمية
+    if (!rates || Object.keys(rates).length <= 1) return null;
 
     let totalValue = 0;
     let totalInitial = 0;

@@ -10,7 +10,7 @@ const DEFAULT_NOTIFICATION_SETTINGS = {
   priceAlertsEnabled: true,
   portfolioAlertsEnabled: true,
   dailySummaryEnabled: true,
-  priceThreshold: 0.05,
+  priceThreshold: 1.5, // عتبة واقعية بنسبة 1.5% بدلاً من الكسور الصفرية القديمة المزعجة
   selectedCurrencies: ['USD', 'EUR', 'GBP', 'SAR', 'AED'],
   quietHoursEnabled: false,
   quietHoursStart: 22,

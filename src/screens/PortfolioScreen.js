@@ -306,7 +306,8 @@ export default function PortfolioScreen() {
       try {
         await initializeNotifications();
 
-        if (assets.length === 0 || !currencyRates) return;
+        // صمام أمان: منع الفحص المتسرع إذا كانت الأسعار لم تُحمل بالكامل بعد وتساوي القيمة الافتراضية فقط
+        if (assets.length === 0 || !currencyRates || Object.keys(currencyRates).length <= 1) return;
 
         const settingsStr = await AsyncStorage.getItem('@notification_settings');
         const settings = settingsStr ? JSON.parse(settingsStr) : null;
