@@ -312,11 +312,11 @@ const ConverterScreen = () => {
                 <Animated.View style={[{ width: 44, height: 44, marginRight: 30 }, { transform: [{ rotate: headerLogoSpin }] }]}><Image source={require('../assets/logo-black.png')} style={{ width: '100%', height: '100%' }} resizeMode="contain" /></Animated.View>
                 <View style={{ flex: 1 }}>
                   <Text style={[neoStyles.mainTitle, { fontSize: 16, fontWeight: '900', textAlign: 'left', color: '#000000' }]} numberOfLines={1}>{t('converter.title')}</Text>
-                  {lastUpdated ? <Text style={[styles.lastUpdatedText, { color: '#000000', fontSize: 12, fontWeight: '700', marginTop: -1, textAlign: 'left' }]} numberOfLines={1}>{t('converter.lastUpdated')}: {lastUpdated}</Text> : null}
+                  {lastUpdated ? <Text style={[styles.lastUpdatedText, { color: '#000000', fontSize: 9, fontWeight: '700', marginTop: 3, textAlign: 'left' }]} numberOfLines={1}>{t('converter.lastUpdated')}: {lastUpdated}</Text> : null}
                 </View>
               </View>
-              <TouchableOpacity style={[styles.refreshButton, { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255, 255, 255, 0.18)', borderColor: 'rgba(255, 255, 255, 0.35)', marginLeft: 'auto' }]} onPress={() => loadLocalRates(true)} disabled={isRefreshing} activeOpacity={0.6}>
-                {isRefreshing ? <ActivityIndicator size="small" color="#000000" /> : <Ionicons name="refresh" size={17} color="#000000" />}
+              <TouchableOpacity style={[styles.refreshButton, { width: 30, height: 30, borderRadius: 17, backgroundColor: 'rgba(255, 255, 255, 0.18)', borderColor: 'rgba(255, 255, 255, 0.35)', marginLeft: 'auto' }]} onPress={() => loadLocalRates(true)} disabled={isRefreshing} activeOpacity={0.6}>
+                {isRefreshing ? <ActivityIndicator size="small" color="#000000" /> : <Ionicons name="refresh" size={15} color="#000000" />}
               </TouchableOpacity>
             </View>
 
