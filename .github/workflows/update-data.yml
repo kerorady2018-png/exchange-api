@@ -1,41 +1,40 @@
-name: Update Static Data
+name: Update Exchange Data
 
 on:
   schedule:
-    # تحديث شامل للعملات والمعادن كل 30 دقيقة لضمان الكفاءة
-    - cron: '0,30 * * * *'
-  workflow_dispatch: # يسمح بالتحديث اليدوي من واجهة جيت هاب عند الضرورة
+    # التحديث كل 30 دقيقة
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # السماح بالتشغيل اليدوي
 
 jobs:
-  update-all-data:
+  update-data:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+
     steps:
-      - uses: actions/checkout@v3
-
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
-
+          node-version: '22'
+          cache: npm
+          
       - name: Install dependencies
-        run: npm install axios
-
-      - name: Fetch all data (Currencies & Metals)
+        run: npm ci --omit=dev --ignore-scripts
+        
+      - name: Run data fetcher
+        run: node scripts/data-fetcher.cjs
+        
+      - name: Commit changes
         run: |
-          node scripts-static/fetch-currencies.cjs
-          node scripts-static/fetch-metals.cjs
-
-      - name: Commit and push changes
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add static-data.json
-          # لا يتم عمل Commit إلا إذا كانت هناك تغييرات فعلياً في الأسعار
-          if ! git diff --staged --quiet; then
-            git commit -m "Update static data (currencies & metals)"
-            git push
-          else
-            echo "No changes in rates detected, skipping commit."
-          fi
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add public/data/rates.json public/data/metadata.json
+          git diff --staged --quiet || git commit -m "Update exchange data via GitHub Actions"
+          
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
