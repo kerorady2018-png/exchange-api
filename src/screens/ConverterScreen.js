@@ -51,7 +51,7 @@ const ConverterScreen = () => {
     if (sharedRates?.rates && Object.keys(sharedRates.rates).length > 1) {
       setRates(sharedRates.rates);
       setLastUpdated(sharedRates.lastUpdated);
-      setFetchError(Boolean(sharedRates.error));
+      setFetchError(Boolean(sharedRates.error) && Object.keys(sharedRates.rates).length === 0);
       setIsLoading(false);
     }
   }, [sharedRates?.rates, sharedRates?.lastUpdated, sharedRates?.error]);
@@ -173,15 +173,27 @@ const ConverterScreen = () => {
 
       if (data && data.rates && Object.keys(data.rates).length > 0) {
         setRates(data.rates);
-        setFetchError(Boolean(data._isFallback));
+        setFetchError(Boolean(data._isFallback) && Object.keys(data.rates).length === 0);
 
-        // جلب وقت التحديث من التخزين المحلي
+        // جلب وقت التحديث من التخزين المحلي وتنسيقه ذكياً
         const cachedTimeStr = data._lastUpdated;
         if (!isMountedRef.current) return;
 
         if (cachedTimeStr && Number.isFinite(new Date(cachedTimeStr).getTime())) {
           const dateObj = new Date(cachedTimeStr);
-          setLastUpdated(dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+          const today = new Date();
+          const isToday = dateObj.getDate() === today.getDate() &&
+            dateObj.getMonth() === today.getMonth() &&
+            dateObj.getFullYear() === today.getFullYear();
+
+          const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          if (isToday) {
+            setLastUpdated(timeStr);
+          } else {
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            setLastUpdated(`${day}/${month} ${timeStr}`);
+          }
         } else {
           setLastUpdated('');
         }
@@ -196,10 +208,8 @@ const ConverterScreen = () => {
       if (errorHandler && typeof errorHandler.logError === 'function') {
         errorHandler.logError(error, 'ConverterScreen:loadLocalRates');
       }
-      if (isMountedRef.current) {
+      if (isMountedRef.current && Object.keys(rates).length === 0) {
         setFetchError(true);
-        // نسيب أي أسعار سابقة زي ما هي بدل ما نفضيها، أفضل من واجهة فاضية تمامًا
-        setRates(prev => prev);
       }
     } finally {
       if (isMountedRef.current) {
@@ -339,8 +349,8 @@ const ConverterScreen = () => {
 
             {/* المستطيل الزجاجي الشفاف المسنفر الشامل - تباين عالي للوضوح بدون ظلال */}
             <View style={[styles.frostedGlassCard, {
-              backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.55)' : 'rgba(255, 255, 255, 0.88)',
-              borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.22)' : 'rgba(255, 255, 255, 0.9)'
+              backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.55)' : 'rgba(255, 255, 255, 0.15)',
+              borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 76, 158, 0.2)'
             }]}>
 
               {/* قسم اختيار العملات (من وإلى + زر التبديل) */}
@@ -378,7 +388,7 @@ const ConverterScreen = () => {
               {/* شريط الأرقام السريعة للتحويل */}
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.presetScroll} contentContainerStyle={{ alignItems: 'center' }}>
                 {[5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100,150,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,1000].map((val) => (
-                  <TouchableOpacity key={val} style={[styles.presetButton, { backgroundColor: fromAmount === val.toString() ? '#007bff81' : (isDarkMode ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)'), borderColor: fromAmount === val.toString() ? '#007AFF' : colors.glassBorder }]} onPress={() => { setActiveField('from'); setFromAmount(val.toString()); }}>
+                  <TouchableOpacity key={val} style={[styles.presetButton, { backgroundColor: fromAmount === val.toString() ? '#387d9f71' : (isDarkMode ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)'), borderColor: fromAmount === val.toString() ? '#387c9f' : colors.glassBorder }]} onPress={() => { setActiveField('from'); setFromAmount(val.toString()); }}>
                     <Text style={[styles.presetButtonText, { color: fromAmount === val.toString() ? '#FFFFFF' : colors.text }]}>{val}</Text>
                   </TouchableOpacity>
                 ))}
@@ -389,8 +399,8 @@ const ConverterScreen = () => {
             <View style={[styles.frostedGlassCard, {
               width: '100%',
               marginTop: 24,
-              backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.5)' : 'rgba(255, 255, 255, 0.82)',
-              borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.9)'
+              backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.5)' : 'rgba(255, 255, 255, 0.15)',
+              borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 76, 158, 0.2)'
             }]}>
               <View style={styles.headerRowContainer}>
                 <View style={styles.headerTitleRow}>

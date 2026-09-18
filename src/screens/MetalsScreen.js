@@ -91,9 +91,22 @@ export default function MetalsScreen() {
         setMetalsData(data);
         const updated = data._lastUpdated;
         if (updated && Number.isFinite(new Date(updated).getTime())) {
-          setLastUpdated(new Date(updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+          const dateObj = new Date(updated);
+          const today = new Date();
+          const isToday = dateObj.getDate() === today.getDate() &&
+            dateObj.getMonth() === today.getMonth() &&
+            dateObj.getFullYear() === today.getFullYear();
+
+          const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          if (isToday) {
+            setLastUpdated(timeStr);
+          } else {
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            setLastUpdated(`${day}/${month} ${timeStr}`);
+          }
         }
-        setFetchError(Boolean(data._isFallback));
+        setFetchError(Boolean(data._isFallback) && !data.XAU_24?.price);
       } else {
         setFetchError(true);
       }
@@ -204,7 +217,7 @@ export default function MetalsScreen() {
           showsVerticalScrollIndicator={false}
         >
           {renderHeader()}
-          {fetchError && <Text accessibilityRole="alert" style={{ color: colors.text, textAlign: 'center', padding: 12 }}>
+          {fetchError && Object.keys(metalsData).length === 0 && <Text accessibilityRole="alert" style={{ color: colors.text, textAlign: 'center', padding: 12 }}>
             {t('rates.stale_prices', { defaultValue: 'تعذر تحديث الأسعار. المعروض آخر بيانات محفوظة وليس أسعاراً مباشرة.' })}
           </Text>}
 

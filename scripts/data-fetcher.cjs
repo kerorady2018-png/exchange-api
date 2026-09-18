@@ -59,17 +59,16 @@ const fetchCurrenciesData = async ({ previousSnapshot = readSnapshot(), now = Da
   const checkedAt = new Date(now).toISOString();
   const previous = previousSnapshot?.currencies;
   const [globalRes, cbeRes, banqueMisrRes] = await Promise.allSettled([
-    axios.get('https://open.er-api.com/v6/latest/USD', { timeout: 15000 }),
+    axios.get('https://api.coinbase.com/v2/exchange-rates?currency=USD', { timeout: 15000 }),
     fetchCBERates({ now }),
     fetchBanqueMisrRates({ previousRates: previous?.banqueMisrRates || {}, now })
   ]);
-  const globalData = globalRes.status === 'fulfilled' ? globalRes.value?.data : null;
-  const globalTime = sourceTime(globalData, now);
+  const globalData = globalRes.status === 'fulfilled' ? globalRes.value?.data?.data : null;
+  const globalTime = new Date(now).toISOString(); // Coinbase rates are real-time
   const rawGlobalRates = globalData?.rates;
   const globalAvailable = rawGlobalRates && !Array.isArray(rawGlobalRates) &&
-    (!globalData.base_code || globalData.base_code === 'USD') && globalData.result !== 'error' &&
-    globalData.stale !== true && !['stale', 'unavailable', 'error'].includes(globalData.status) &&
-    Number(rawGlobalRates.USD) === 1 && positive(rawGlobalRates.EGP) && validTime(globalTime, now);
+    globalData.currency === 'USD' &&
+    Number(rawGlobalRates.USD || 1) === 1 && positive(rawGlobalRates.EGP) && validTime(globalTime, now);
 
   // الدمج مع العملات الافتراضية لضمان عدم نقص أي عملة
   const globalRates = globalAvailable ? Object.fromEntries(Object.entries(rawGlobalRates)

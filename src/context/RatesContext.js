@@ -25,10 +25,23 @@ export const RatesProvider = ({ children }) => {
   const requestRef = useRef(null);
   const mountedRef = useRef(true);
 
-  // دالة لجلب الوقت الحالي
-  const getCurrentTime = timestamp => new Date(timestamp).toLocaleTimeString([], {
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-  });
+  // دالة لجلب الوقت الحالي مع دعم التاريخ التلقائي للأيام السابقة
+  const getCurrentTime = timestamp => {
+    const date = new Date(timestamp);
+    const today = new Date();
+    const isToday = date.getDate() === today.getDate() &&
+      date.getMonth() === today.getMonth() &&
+      date.getFullYear() === today.getFullYear();
+
+    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (isToday) {
+      return timeStr;
+    } else {
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      return `${day}/${month} ${timeStr}`;
+    }
+  };
 
   // محاولة تحميل الكاش فوراً عند بدء التشغيل لضمان استمرارية العرض
   useEffect(() => {

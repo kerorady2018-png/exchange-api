@@ -424,7 +424,7 @@ export default function RatesScreen() {
           keyExtractor={(item) => item}
           ListHeaderComponent={<View>
             {renderHeader()}
-            {ratesError && Object.keys(contextRates).length > 0 && (
+            {ratesError && Object.keys(contextRates).length === 0 && (
               <Text accessibilityRole="alert" style={{ color: colors.text, textAlign: 'center', padding: 12 }}>
                 {t('rates.stale_prices', { defaultValue: 'تعذر تحديث الأسعار. المعروض آخر بيانات محفوظة وليس أسعاراً مباشرة.' })}
               </Text>
