@@ -167,10 +167,10 @@
       "ZMW": 19.344236563741735,
       "ZWG": 26.669445446356537,
       "ZWL": 26.669445446356537,
-      "XAU_24": 140.73335171282974,
-      "XAU_21": 123.14168274872603,
-      "XAU_18": 105.55001378462231,
-      "XAG_GRAM": 2.1582457922741813
+      "XAU_24": 140.00996045461122,
+      "XAU_21": 122.50871539778481,
+      "XAU_18": 105.0074703409584,
+      "XAG_GRAM": 2.134743774816339
     },
     "banqueMisrRates": {
       "USD": {
@@ -179,7 +179,7 @@
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
         "stale": false
       },
       "EUR": {
@@ -188,7 +188,7 @@
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
         "stale": false
       },
       "GBP": {
@@ -197,7 +197,7 @@
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
         "stale": false
       },
       "AED": {
@@ -206,7 +206,7 @@
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
         "stale": false
       },
       "AUD": {
@@ -215,7 +215,7 @@
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
         "stale": false
       },
       "BHD": {
@@ -224,7 +224,7 @@
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
         "stale": false
       },
       "CAD": {
@@ -233,7 +233,7 @@
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
         "stale": false
       },
       "CHF": {
@@ -242,7 +242,7 @@
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
         "stale": false
       },
       "CNY": {
@@ -251,7 +251,7 @@
         "quoteType": "transfer",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
         "stale": false
       },
       "DKK": {
@@ -260,7 +260,7 @@
         "quoteType": "transfer",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
         "stale": false
       },
       "INR": {
@@ -269,7 +269,7 @@
         "quoteType": "transfer",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
         "stale": false
       },
       "JOD": {
@@ -278,7 +278,7 @@
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
         "stale": false
       },
       "JPY": {
@@ -287,7 +287,7 @@
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
         "stale": false
       },
       "KWD": {
@@ -296,7 +296,7 @@
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
         "stale": false
       },
       "NOK": {
@@ -305,7 +305,7 @@
         "quoteType": "transfer",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
         "stale": false
       },
       "OMR": {
@@ -314,7 +314,7 @@
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
         "stale": false
       },
       "QAR": {
@@ -323,7 +323,7 @@
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
         "stale": false
       },
       "SAR": {
@@ -332,7 +332,7 @@
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
         "stale": false
       },
       "SEK": {
@@ -341,7 +341,7 @@
         "quoteType": "transfer",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
         "stale": false
       }
     },
@@ -349,7 +349,7 @@
     "banqueMisrSources": {
       "official": {
         "status": "ok",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
         "currencies": [
           "USD",
           "EUR",
@@ -390,21 +390,21 @@
       "global": {
         "status": "ok",
         "sourceUpdatedAt": "2026-09-18T00:02:31.000Z",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
-        "checkedAt": "2026-09-18T09:57:28.373Z"
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
+        "checkedAt": "2026-09-18T14:06:25.425Z"
       },
       "cbe": {
         "status": "ok",
         "sourceUpdatedAt": "2026-09-17T00:00:00.000Z",
-        "fetchedAt": "2026-09-18T09:57:28.373Z",
-        "checkedAt": "2026-09-18T09:57:28.373Z"
+        "fetchedAt": "2026-09-18T14:06:25.425Z",
+        "checkedAt": "2026-09-18T14:06:25.425Z"
       },
       "banqueMisr": {
         "status": "ok",
         "sources": {
           "official": {
             "status": "ok",
-            "fetchedAt": "2026-09-18T09:57:28.373Z",
+            "fetchedAt": "2026-09-18T14:06:25.425Z",
             "currencies": [
               "USD",
               "EUR",
@@ -443,7 +443,7 @@
         }
       }
     },
-    "checkedAt": "2026-09-18T09:57:28.373Z",
+    "checkedAt": "2026-09-18T14:06:25.425Z",
     "globalRates": {
       "USD": 1,
       "AED": 3.6725,
@@ -616,46 +616,46 @@
     "status": "ok"
   },
   "metals": {
-    "lastUpdated": "2026-09-18T09:57:08Z",
+    "lastUpdated": "2026-09-18T14:06:08Z",
     "status": "ok",
     "sources": {
       "gold": {
         "status": "ok",
-        "sourceUpdatedAt": "2026-09-18T09:57:08Z",
-        "fetchedAt": "2026-09-18T09:57:28.373Z"
+        "sourceUpdatedAt": "2026-09-18T14:06:09Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z"
       },
       "silver": {
         "status": "ok",
-        "sourceUpdatedAt": "2026-09-18T09:57:08Z",
-        "fetchedAt": "2026-09-18T09:57:28.373Z"
+        "sourceUpdatedAt": "2026-09-18T14:06:08Z",
+        "fetchedAt": "2026-09-18T14:06:25.425Z"
       }
     },
     "goldData": {
-      "price_gram_24k": 140.73335171282974,
-      "price_gram_21k": 123.14168274872603,
-      "price_gram_18k": 105.55001378462231,
-      "price_ounce": 4377.299805,
-      "price": 4377.299805,
+      "price_gram_24k": 140.00996045461122,
+      "price_gram_21k": 122.50871539778481,
+      "price_gram_18k": 105.0074703409584,
+      "price_ounce": 4354.799805,
+      "price": 4354.799805,
       "data": {
-        "price": 4377.299805
+        "price": 4354.799805
       }
     },
     "silverData": {
-      "price_gram": 2.1582457922741813,
-      "price_ounce": 67.128998,
-      "price": 67.128998,
+      "price_gram": 2.134743774816339,
+      "price_ounce": 66.398003,
+      "price": 66.398003,
       "data": {
-        "price": 67.128998
+        "price": 66.398003
       }
     }
   },
   "calculatedRates": {
-    "XAU_24": 140.73335171282974,
-    "XAU_21": 123.14168274872603,
-    "XAU_18": 105.55001378462231,
-    "XAG_GRAM": 2.1582457922741813
+    "XAU_24": 140.00996045461122,
+    "XAU_21": 122.50871539778481,
+    "XAU_18": 105.0074703409584,
+    "XAG_GRAM": 2.134743774816339
   },
   "lastUpdated": "2026-09-17T00:00:00.000Z",
-  "checkedAt": "2026-09-18T09:57:28.373Z",
+  "checkedAt": "2026-09-18T14:06:25.425Z",
   "status": "success"
 }
