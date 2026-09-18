@@ -13,7 +13,11 @@ const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const positive = (value) => (typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')) && Number.isFinite(Number(value)) && Number(value) > 0;
 const validTime = (value, now) => typeof value === 'string' && Number.isFinite(Date.parse(value)) && Date.parse(value) <= now && now - Date.parse(value) <= MAX_AGE_MS;
-const oldestTime = (times) => times.reduce((oldest, value) => !oldest || Date.parse(value) < Date.parse(oldest) ? value : oldest, null);
+const newestTime = (times) => {
+  const validTimes = times.filter(t => t && Number.isFinite(Date.parse(t)));
+  if (!validTimes.length) return new Date().toISOString();
+  return validTimes.reduce((newest, value) => Date.parse(value) > Date.parse(newest) ? value : newest, validTimes[0]);
+};
 const average = (values) => {
   const sum = values.reduce((total, value) => total + value, 0);
   if (Number.isFinite(sum)) return sum / values.length;
@@ -149,7 +153,7 @@ const fetchCurrenciesData = async ({ previousSnapshot = readSnapshot(), now = Da
   console.log('Currencies data fetched successfully');
   return {
     rates, ...details, globalRates,
-    lastUpdated: oldestTime(usedTimes),
+    lastUpdated: newestTime(usedTimes),
     status: globalAvailable && sources.cbe.status === 'ok' && banqueMisrStatus === 'ok' ? 'ok' : 'partial'
   };
 };
@@ -193,7 +197,7 @@ const fetchMetalsData = async ({ previousSnapshot = readSnapshot(), now = Date.n
   }
 
   // هيكلة بيانات المعادن بخصائص مكتملة يسهل قراءتها من التطبيق
-  const structuredMetals = { lastUpdated: oldestTime(times), status: prices.gold && prices.silver ? 'ok' : 'partial', sources };
+  const structuredMetals = { lastUpdated: newestTime(times), status: prices.gold && prices.silver ? 'ok' : 'partial', sources };
   if (prices.gold) {
     const gram24USD = prices.gold / 31.1035;
     structuredMetals.goldData = {
@@ -215,7 +219,7 @@ const fetchMetalsData = async ({ previousSnapshot = readSnapshot(), now = Date.n
       times.push(cached.lastUpdated);
     }
   }
-  structuredMetals.lastUpdated = oldestTime(times);
+  structuredMetals.lastUpdated = newestTime(times);
   console.log('Metals data fetched successfully');
   return structuredMetals;
 };
@@ -268,7 +272,7 @@ const main = async ({ previousSnapshot = readSnapshot(), now = Date.now() } = {}
       currencies: finalCurrencies,
       ...(finalMetals ? { metals: finalMetals } : {}),
       calculatedRates,
-      lastUpdated: oldestTime([finalCurrencies.lastUpdated, ...(finalMetals ? [finalMetals.lastUpdated] : [])]),
+      lastUpdated: newestTime([finalCurrencies.lastUpdated, ...(finalMetals ? [finalMetals.lastUpdated] : [])]),
       checkedAt: new Date(now).toISOString(),
       status
     };

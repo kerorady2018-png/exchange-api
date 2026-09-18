@@ -307,12 +307,12 @@ const ConverterScreen = () => {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, zIndex: 1 }}>
           <ScrollView contentContainerStyle={[styles.scrollContent, { maxWidth: 800, alignSelf: 'center', width: '100%' }]} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor="#ffffff" colors={['#ffffff']} progressBackgroundColor="rgba(56, 124, 159, 0.9)" />}>
 
-            <View style={[neoStyles.floatingBar, { height: 60, paddingVertical: 0, paddingHorizontal: 12, justifyContent: 'flex-start', backgroundColor: 'rgba(255, 255, 255, 0.16)', borderColor: 'rgba(255, 255, 255, 0.35)' }]}>
+            <View style={[neoStyles.floatingBar, { width: '85%', alignSelf: 'center', height: 70, paddingVertical: 0, paddingHorizontal: 5, justifyContent: 'flex-start', backgroundColor: 'rgba(200, 255, 255, 0.10)', borderColor: 'rgba(0, 76, 158, 0.2)' }]}>
               <View style={[styles.headerTitleGroup, { flex: 1, justifyContent: 'flex-start', flexDirection: 'row', alignItems: 'center' }]}>
-                <Animated.View style={[{ width: 44, height: 44, marginRight: 8 }, { transform: [{ rotate: headerLogoSpin }] }]}><Image source={require('../assets/logo-black.png')} style={{ width: '100%', height: '100%' }} resizeMode="contain" /></Animated.View>
+                <Animated.View style={[{ width: 44, height: 44, marginRight: 30 }, { transform: [{ rotate: headerLogoSpin }] }]}><Image source={require('../assets/logo-black.png')} style={{ width: '100%', height: '100%' }} resizeMode="contain" /></Animated.View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[neoStyles.mainTitle, { fontSize: 18, fontWeight: '900', textAlign: 'left', color: '#000000' }]} numberOfLines={1}>{t('converter.title')}</Text>
-                  {lastUpdated ? <Text style={[styles.lastUpdatedText, { color: '#000000', fontSize: 9, fontWeight: '700', marginTop: -1, textAlign: 'left' }]} numberOfLines={1}>{t('converter.lastUpdated')}: {lastUpdated}</Text> : null}
+                  <Text style={[neoStyles.mainTitle, { fontSize: 16, fontWeight: '900', textAlign: 'left', color: '#000000' }]} numberOfLines={1}>{t('converter.title')}</Text>
+                  {lastUpdated ? <Text style={[styles.lastUpdatedText, { color: '#000000', fontSize: 12, fontWeight: '700', marginTop: -1, textAlign: 'left' }]} numberOfLines={1}>{t('converter.lastUpdated')}: {lastUpdated}</Text> : null}
                 </View>
               </View>
               <TouchableOpacity style={[styles.refreshButton, { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255, 255, 255, 0.18)', borderColor: 'rgba(255, 255, 255, 0.35)', marginLeft: 'auto' }]} onPress={() => loadLocalRates(true)} disabled={isRefreshing} activeOpacity={0.6}>
@@ -398,7 +398,7 @@ const ConverterScreen = () => {
             {/* سجل التحويلات السابقة - تباين عالي للوضوح بدون ظلال */}
             <View style={[styles.frostedGlassCard, {
               width: '100%',
-              marginTop: 24,
+              marginTop: 10,
               backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.5)' : 'rgba(255, 255, 255, 0.15)',
               borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 76, 158, 0.2)'
             }]}>
@@ -477,7 +477,7 @@ const ConverterScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, position: 'relative', overflow: 'hidden' },
-  screenTopIndicatorContainer: { position: 'absolute', top: Platform.OS === 'ios' ? 45 : 30, right: 16, zIndex: 50 },
+  screenTopIndicatorContainer: { position: 'absolute', top: Platform.OS === 'ios' ? 45 : 30, right: 10, zIndex: 50 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scrollContent: { paddingHorizontal: 16, alignItems: 'center', paddingTop: 45, paddingBottom: 60 },
 
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     borderWidth: 1.5,
     padding: 20,
-    marginTop: 0,
+    marginTop: -10,
   },
 
   errorBanner: {
@@ -531,7 +531,7 @@ const styles = StyleSheet.create({
   historyItemText: { fontSize: 15, fontWeight: '600' },
   historyItemTextBold: { fontSize: 15, fontWeight: '700' },
   historyItemTime: { fontSize: 11, marginTop: 3 },
-  historyRestoreBtn: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: 'rgba(0, 122, 255, 0.3)', backgroundColor: 'rgba(0, 122, 255, 0.08)', justifyContent: 'center', alignItems: 'center', marginLeft: 10 },
+  historyRestoreBtn: { width: 25, height: 25, borderRadius: 17, borderWidth: 1, borderColor: 'rgba(0, 122, 255, 0.3)', backgroundColor: 'rgba(0, 122, 255, 0.08)', justifyContent: 'center', alignItems: 'center', marginLeft: 10 },
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
   modalContent: { height: '80%', borderTopLeftRadius: 36, borderTopRightRadius: 36, padding: 24 },
   modalIndicator: { width: 38, height: 5, borderRadius: 3, backgroundColor: '#C7C7CC', alignSelf: 'center', marginBottom: 16 },
