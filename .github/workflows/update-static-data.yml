@@ -1,0 +1,41 @@
+name: Update Static Data
+
+on:
+  schedule:
+    # تحديث شامل للعملات والمعادن كل 30 دقيقة لضمان الكفاءة
+    - cron: '0,30 * * * *'
+  workflow_dispatch: # يسمح بالتحديث اليدوي من واجهة جيت هاب عند الضرورة
+
+jobs:
+  update-all-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install axios
+
+      - name: Fetch all data (Currencies & Metals)
+        run: |
+          node scripts-static/fetch-currencies.cjs
+          node scripts-static/fetch-metals.cjs
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add static-data.json
+          # لا يتم عمل Commit إلا إذا كانت هناك تغييرات فعلياً في الأسعار
+          if ! git diff --staged --quiet; then
+            git commit -m "Update static data (currencies & metals)"
+            git push
+          else
+            echo "No changes in rates detected, skipping commit."
+          fi
