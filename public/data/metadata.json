@@ -1,15 +1,8 @@
 {
-<<<<<<< HEAD
-  "lastCurrenciesUpdate": "2026-09-17T00:00:00.000Z",
-  "lastMetalsUpdate": "2026-09-18T18:36:09Z",
-  "lastFullUpdate": "2026-09-17T00:00:00.000Z",
-  "checkedAt": "2026-09-18T18:36:21.357Z",
-=======
-  "lastCurrenciesUpdate": "2026-09-18T19:59:48.854Z",
-  "lastMetalsUpdate": "2026-09-18T19:59:40Z",
-  "lastFullUpdate": "2026-09-18T19:59:48.854Z",
-  "checkedAt": "2026-09-18T19:59:48.854Z",
->>>>>>> 7d10fb1 (Fix date logic to show latest update and correct MetalsScreen syntax)
+  "lastCurrenciesUpdate": "2026-09-18T21:24:01.710Z",
+  "lastMetalsUpdate": "2026-09-18T21:23:40Z",
+  "lastFullUpdate": "2026-09-18T21:24:01.710Z",
+  "checkedAt": "2026-09-18T21:24:01.710Z",
   "status": "success",
   "version": "1.0.0"
 }
