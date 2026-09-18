@@ -1,12 +1,39 @@
 import React from 'react';
-import { StyleSheet, View, Dimensions } from 'react-native';
+import { StyleSheet, View, Dimensions, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useTheme } from '../../hooks/useTheme';
 
 const { width, height } = Dimensions.get('window');
 
-const NeoBackground = ({ children }) => {
+const NeoBackground = ({ children, variant = 'default', blurIntensity }) => {
   const { isDarkMode, colors } = useTheme();
+
+  if (variant === 'vertical') {
+    const gradientColors = isDarkMode
+      ? ['#0B3B4F', '#155E75', '#1E293B', '#0F172A']
+      : ['#2F6F8F', '#4C8FAE', '#A9CBDB', '#F2F6F9'];
+    const intensity = blurIntensity ?? (isDarkMode ? 40 : 30);
+
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <LinearGradient
+          colors={gradientColors}
+          locations={[0, 0.3, 0.62, 1]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <BlurView
+          intensity={intensity}
+          tint={isDarkMode ? 'dark' : 'light'}
+          experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
+          style={StyleSheet.absoluteFill}
+        />
+        {children}
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>

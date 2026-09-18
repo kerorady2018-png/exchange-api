@@ -290,23 +290,23 @@ const ConverterScreen = () => {
   }
 
   return (
-    <NeoBackground blurIntensity={isDarkMode ? 160 : 140}>
+    <NeoBackground variant="vertical" blurIntensity={isDarkMode ? 45 : 35}>
       <SafeAreaView style={styles.container}>
         <View style={styles.screenTopIndicatorContainer}><ConnectionIndicator /></View>
 
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, zIndex: 1 }}>
-          <ScrollView contentContainerStyle={[styles.scrollContent, { maxWidth: 800, alignSelf: 'center', width: '100%' }]} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={isDarkMode ? '#ffffff' : '#387c9f'} />}>
+          <ScrollView contentContainerStyle={[styles.scrollContent, { maxWidth: 800, alignSelf: 'center', width: '100%' }]} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor="#ffffff" colors={['#ffffff']} progressBackgroundColor="rgba(56, 124, 159, 0.9)" />}>
 
-            <View style={[neoStyles.floatingBar, { height: 60, paddingVertical: 0, paddingHorizontal: 12, justifyContent: 'flex-start', backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.7)', borderColor: colors.glassBorder }]}>
+            <View style={[neoStyles.floatingBar, { height: 60, paddingVertical: 0, paddingHorizontal: 12, justifyContent: 'flex-start', backgroundColor: 'rgba(255, 255, 255, 0.16)', borderColor: 'rgba(255, 255, 255, 0.35)' }]}>
               <View style={[styles.headerTitleGroup, { flex: 1, justifyContent: 'flex-start', flexDirection: 'row', alignItems: 'center' }]}>
-                <Animated.View style={[{ width: 44, height: 44, marginRight: 8 }, { transform: [{ rotate: headerLogoSpin }] }]}><Image source={isDarkMode ? require('../assets/logo-white.png') : require('../assets/logo-black.png')} style={{ width: '100%', height: '100%' }} resizeMode="contain" /></Animated.View>
+                <Animated.View style={[{ width: 44, height: 44, marginRight: 8 }, { transform: [{ rotate: headerLogoSpin }] }]}><Image source={require('../assets/logo-black.png')} style={{ width: '100%', height: '100%' }} resizeMode="contain" /></Animated.View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[neoStyles.mainTitle, { fontSize: 18, fontWeight: '900', textAlign: 'left' }]} numberOfLines={1}>{t('converter.title')}</Text>
-                  {lastUpdated ? <Text style={[styles.lastUpdatedText, { color: colors.sectionHeader, fontSize: 9, fontWeight: '700', marginTop: -1, textAlign: 'left' }]} numberOfLines={1}>{t('converter.lastUpdated')}: {lastUpdated}</Text> : null}
+                  <Text style={[neoStyles.mainTitle, { fontSize: 18, fontWeight: '900', textAlign: 'left', color: '#000000' }]} numberOfLines={1}>{t('converter.title')}</Text>
+                  {lastUpdated ? <Text style={[styles.lastUpdatedText, { color: '#000000', fontSize: 9, fontWeight: '700', marginTop: -1, textAlign: 'left' }]} numberOfLines={1}>{t('converter.lastUpdated')}: {lastUpdated}</Text> : null}
                 </View>
               </View>
-              <TouchableOpacity style={[styles.refreshButton, { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(56, 124, 159, 0.1)', borderColor: 'rgba(56, 124, 159, 0.2)', marginLeft: 'auto' }]} onPress={() => loadLocalRates(true)} disabled={isRefreshing} activeOpacity={0.6}>
-                {isRefreshing ? <ActivityIndicator size="small" color="#387c9f" /> : <Ionicons name="refresh" size={17} color="#387c9f" />}
+              <TouchableOpacity style={[styles.refreshButton, { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255, 255, 255, 0.18)', borderColor: 'rgba(255, 255, 255, 0.35)', marginLeft: 'auto' }]} onPress={() => loadLocalRates(true)} disabled={isRefreshing} activeOpacity={0.6}>
+                {isRefreshing ? <ActivityIndicator size="small" color="#000000" /> : <Ionicons name="refresh" size={17} color="#000000" />}
               </TouchableOpacity>
             </View>
 
@@ -339,8 +339,8 @@ const ConverterScreen = () => {
 
             {/* المستطيل الزجاجي الشفاف المسنفر الشامل - تباين عالي للوضوح بدون ظلال */}
             <View style={[styles.frostedGlassCard, {
-              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.75)',
-              borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)'
+              backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.55)' : 'rgba(255, 255, 255, 0.88)',
+              borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.22)' : 'rgba(255, 255, 255, 0.9)'
             }]}>
 
               {/* قسم اختيار العملات (من وإلى + زر التبديل) */}
@@ -389,8 +389,8 @@ const ConverterScreen = () => {
             <View style={[styles.frostedGlassCard, {
               width: '100%',
               marginTop: 24,
-              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.26)',
-              borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)'
+              backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.5)' : 'rgba(255, 255, 255, 0.82)',
+              borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.9)'
             }]}>
               <View style={styles.headerRowContainer}>
                 <View style={styles.headerTitleRow}>
