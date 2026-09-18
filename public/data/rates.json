@@ -3,21 +3,21 @@
     "rates": {
       "USD": 1,
       "EGP": 52.13766233333333,
-      "AED": 3.6732406137686713,
+      "AED": 3.6732233611945815,
       "AFN": 64.70914717037627,
       "ALL": 79.61358522590241,
       "AMD": 363.618884914918,
       "ANG": 1.7900231859709628,
       "AOA": 921.4135219667269,
       "ARS": 1510.0219591462571,
-      "AUD": 1.4067877120342718,
+      "AUD": 1.4054705317556322,
       "AWG": 1.7900231859709628,
       "AZN": 1.699962019418703,
       "BAM": 1.702815056373773,
       "BBD": 2.0000259061128074,
       "BDT": 123.05762995177514,
       "BGN": 1.702815056373773,
-      "BHD": 0.3775738481835889,
+      "BHD": 0.3775755343664495,
       "BIF": 2994.835817774796,
       "BMD": 1.0000129530564037,
       "BND": 1.275657523449824,
@@ -28,29 +28,29 @@
       "BWP": 13.883337829328635,
       "BYN": 3.032497279599516,
       "BZD": 2.0000259061128074,
-      "CAD": 1.3987646488105492,
+      "CAD": 1.3987471366760462,
       "CDF": 2310.5699255549043,
-      "CHF": 0.8249676812528458,
+      "CHF": 0.8246006101271073,
       "CLF": 0.02412231245362657,
       "CLP": 953.4517649545202,
       "CNH": 6.7050078492198955,
-      "CNY": 6.712913505849965,
+      "CNY": 6.709422493390637,
       "COP": 3128.841306532967,
       "CRC": 448.5068464592294,
       "CUP": 24.00031087335369,
       "CVE": 96.00060348512481,
       "CZK": 21.18325438433474,
       "DJF": 177.72330203013715,
-      "DKK": 6.514358192900969,
+      "DKK": 6.511978563001244,
       "DOP": 58.791903524978366,
       "DZD": 133.80313813714585,
       "ERN": 15.000194295846057,
       "ETB": 161.32831566770477,
-      "EUR": 0.8712438452104635,
+      "EUR": 0.8709025732644916,
       "FJD": 2.22768285492791,
       "FKP": 0.7482296917358624,
       "FOK": 6.513741371766517,
-      "GBP": 0.7476102254123597,
+      "GBP": 0.74787135106605,
       "GEL": 2.6042007319220355,
       "GGP": 0.7482296917358624,
       "GHS": 11.44072519043917,
@@ -67,14 +67,14 @@
       "IDR": 17740.8008796179,
       "ILS": 3.0288882328519353,
       "IMP": 0.7482296917358624,
-      "INR": 95.95739805463569,
+      "INR": 95.89245104697137,
       "IQD": 1309.2809649705173,
       "IRR": 1393156.1790928242,
       "ISK": 121.82739001661426,
       "JEP": 0.7482296917358624,
       "JMD": 157.91410044375527,
       "JOD": 0.7095768753004559,
-      "JPY": 155.7981724282641,
+      "JPY": 156.11757748833804,
       "KES": 129.53644587115616,
       "KGS": 87.48042112415162,
       "KHR": 4047.502593850305,
@@ -107,7 +107,7 @@
       "NAD": 16.260824624650304,
       "NGN": 1330.2837160168124,
       "NIO": 36.754708079640174,
-      "NOK": 9.421952363991863,
+      "NOK": 9.425365181044283,
       "NPR": 153.53531872588337,
       "NZD": 1.744318593964473,
       "OMR": 0.3857136657865477,
@@ -123,11 +123,11 @@
       "RSD": 102.26847067211038,
       "RUB": 84.4686811134187,
       "RWF": 1474.5108171743902,
-      "SAR": 3.7555178598959773,
+      "SAR": 3.7555494200088355,
       "SBD": 7.917737557572739,
       "SCR": 13.899768042147352,
       "SDG": 511.65366939299383,
-      "SEK": 9.829401859743006,
+      "SEK": 9.820095682023013,
       "SGD": 1.2756845237995564,
       "SHP": 0.7482296917358624,
       "SLE": 24.66857552931135,
@@ -167,10 +167,10 @@
       "ZMW": 19.344236563741735,
       "ZWG": 26.669445446356537,
       "ZWL": 26.669445446356537,
-      "XAU_24": 140.41506267783367,
-      "XAU_21": 122.86317984310446,
-      "XAU_18": 105.31129700837525,
-      "XAG_GRAM": 2.1356118443262013
+      "XAU_24": 140.73335171282974,
+      "XAU_21": 123.14168274872603,
+      "XAU_18": 105.55001378462231,
+      "XAG_GRAM": 2.1582457922741813
     },
     "banqueMisrRates": {
       "USD": {
@@ -179,97 +179,97 @@
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
         "stale": false
       },
       "EUR": {
-        "buy": 59.6628,
-        "sell": 59.9183,
+        "buy": 59.7618,
+        "sell": 59.96,
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
         "stale": false
       },
       "GBP": {
-        "buy": 69.532,
-        "sell": 69.9525,
+        "buy": 69.5476,
+        "sell": 69.7908,
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
         "stale": false
       },
       "AED": {
         "buy": 14.1658,
-        "sell": 14.2079,
+        "sell": 14.2083,
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
         "stale": false
       },
       "AUD": {
-        "buy": 36.8987,
-        "sell": 37.1522,
+        "buy": 37.0237,
+        "sell": 37.2356,
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
         "stale": false
       },
       "BHD": {
         "buy": 136.1355,
-        "sell": 138.4085,
+        "sell": 138.4048,
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
         "stale": false
       },
       "CAD": {
-        "buy": 37.1973,
-        "sell": 37.3194,
+        "buy": 37.1867,
+        "sell": 37.3328,
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
         "stale": false
       },
       "CHF": {
-        "buy": 63.0356,
-        "sell": 63.3406,
+        "buy": 63.112,
+        "sell": 63.433,
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
         "stale": false
       },
       "CNY": {
-        "buy": 7.757041,
-        "sell": 7.782484,
+        "buy": 7.768033,
+        "sell": 7.795739,
         "quoteType": "transfer",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
         "stale": false
       },
       "DKK": {
-        "buy": 7.981487,
-        "sell": 8.0161,
+        "buy": 7.99386,
+        "sell": 8.021275,
         "quoteType": "transfer",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
         "stale": false
       },
       "INR": {
-        "buy": 0.541978,
-        "sell": 0.544719,
+        "buy": 0.543037,
+        "sell": 0.545132,
         "quoteType": "transfer",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
         "stale": false
       },
       "JOD": {
@@ -278,16 +278,16 @@
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
         "stale": false
       },
       "JPY": {
-        "buy": 0.333184,
-        "sell": 0.33549799999999996,
+        "buy": 0.329829,
+        "sell": 0.334745,
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
         "stale": false
       },
       "KWD": {
@@ -296,16 +296,16 @@
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
         "stale": false
       },
       "NOK": {
-        "buy": 5.516832,
-        "sell": 5.557271,
+        "buy": 5.514204,
+        "sell": 5.547877,
         "quoteType": "transfer",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
         "stale": false
       },
       "OMR": {
@@ -314,7 +314,7 @@
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
         "stale": false
       },
       "QAR": {
@@ -323,25 +323,25 @@
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
         "stale": false
       },
       "SAR": {
         "buy": 13.8365,
-        "sell": 13.8917,
+        "sell": 13.891,
         "quoteType": "cash",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
         "stale": false
       },
       "SEK": {
-        "buy": 5.278147,
-        "sell": 5.317707,
+        "buy": 5.300763,
+        "sell": 5.325251,
         "quoteType": "transfer",
         "sourceUpdatedAt": null,
         "source": "official",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
         "stale": false
       }
     },
@@ -349,7 +349,7 @@
     "banqueMisrSources": {
       "official": {
         "status": "ok",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
         "currencies": [
           "USD",
           "EUR",
@@ -390,21 +390,21 @@
       "global": {
         "status": "ok",
         "sourceUpdatedAt": "2026-09-18T00:02:31.000Z",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
-        "checkedAt": "2026-09-18T05:26:33.644Z"
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "checkedAt": "2026-09-18T09:57:28.373Z"
       },
       "cbe": {
         "status": "ok",
         "sourceUpdatedAt": "2026-09-17T00:00:00.000Z",
-        "fetchedAt": "2026-09-18T05:26:33.644Z",
-        "checkedAt": "2026-09-18T05:26:33.644Z"
+        "fetchedAt": "2026-09-18T09:57:28.373Z",
+        "checkedAt": "2026-09-18T09:57:28.373Z"
       },
       "banqueMisr": {
         "status": "ok",
         "sources": {
           "official": {
             "status": "ok",
-            "fetchedAt": "2026-09-18T05:26:33.644Z",
+            "fetchedAt": "2026-09-18T09:57:28.373Z",
             "currencies": [
               "USD",
               "EUR",
@@ -443,7 +443,7 @@
         }
       }
     },
-    "checkedAt": "2026-09-18T05:26:33.644Z",
+    "checkedAt": "2026-09-18T09:57:28.373Z",
     "globalRates": {
       "USD": 1,
       "AED": 3.6725,
@@ -616,46 +616,46 @@
     "status": "ok"
   },
   "metals": {
-    "lastUpdated": "2026-09-18T05:26:07Z",
+    "lastUpdated": "2026-09-18T09:57:08Z",
     "status": "ok",
     "sources": {
       "gold": {
         "status": "ok",
-        "sourceUpdatedAt": "2026-09-18T05:26:08Z",
-        "fetchedAt": "2026-09-18T05:26:33.644Z"
+        "sourceUpdatedAt": "2026-09-18T09:57:08Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z"
       },
       "silver": {
         "status": "ok",
-        "sourceUpdatedAt": "2026-09-18T05:26:07Z",
-        "fetchedAt": "2026-09-18T05:26:33.644Z"
+        "sourceUpdatedAt": "2026-09-18T09:57:08Z",
+        "fetchedAt": "2026-09-18T09:57:28.373Z"
       }
     },
     "goldData": {
-      "price_gram_24k": 140.41506267783367,
-      "price_gram_21k": 122.86317984310446,
-      "price_gram_18k": 105.31129700837525,
-      "price_ounce": 4367.399902,
-      "price": 4367.399902,
+      "price_gram_24k": 140.73335171282974,
+      "price_gram_21k": 123.14168274872603,
+      "price_gram_18k": 105.55001378462231,
+      "price_ounce": 4377.299805,
+      "price": 4377.299805,
       "data": {
-        "price": 4367.399902
+        "price": 4377.299805
       }
     },
     "silverData": {
-      "price_gram": 2.1356118443262013,
-      "price_ounce": 66.425003,
-      "price": 66.425003,
+      "price_gram": 2.1582457922741813,
+      "price_ounce": 67.128998,
+      "price": 67.128998,
       "data": {
-        "price": 66.425003
+        "price": 67.128998
       }
     }
   },
   "calculatedRates": {
-    "XAU_24": 140.41506267783367,
-    "XAU_21": 122.86317984310446,
-    "XAU_18": 105.31129700837525,
-    "XAG_GRAM": 2.1356118443262013
+    "XAU_24": 140.73335171282974,
+    "XAU_21": 123.14168274872603,
+    "XAU_18": 105.55001378462231,
+    "XAG_GRAM": 2.1582457922741813
   },
   "lastUpdated": "2026-09-17T00:00:00.000Z",
-  "checkedAt": "2026-09-18T05:26:33.644Z",
+  "checkedAt": "2026-09-18T09:57:28.373Z",
   "status": "success"
 }
