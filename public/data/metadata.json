@@ -1,8 +1,8 @@
 {
-  "lastCurrenciesUpdate": "2026-11-10T17:11:31.405Z",
-  "lastMetalsUpdate": "2026-11-10T17:11:28Z",
-  "lastFullUpdate": "2026-11-10T17:11:31.405Z",
-  "checkedAt": "2026-11-10T17:11:31.405Z",
-  "status": "success",
+  "lastCurrenciesUpdate": "2026-11-10T22:27:22.640Z",
+  "lastMetalsUpdate": "2026-11-10T22:26:58Z",
+  "lastFullUpdate": "2026-11-10T22:27:22.640Z",
+  "checkedAt": "2026-11-10T22:27:22.640Z",
+  "status": "partial",
   "version": "1.0.0"
 }
